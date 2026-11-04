@@ -29,4 +29,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Attempt::class);
     }
+
+    public function violationLogs(): HasMany
+    {
+        return $this->hasMany(ViolationLog::class)->latest('id');
+    }
 }

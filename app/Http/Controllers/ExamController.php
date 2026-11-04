@@ -7,8 +7,13 @@ use App\Models\Question;
 use App\Models\Section;
 use App\Models\Setting;
 use App\Models\User;
+use App\Models\ViolationLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 
 class ExamController extends Controller
 {
@@ -44,6 +49,7 @@ class ExamController extends Controller
         }
 
         $section->load('questions.passage');
+        $section->setRelation('questions', $this->ordered($section, $request->user()));
         $choices = $attempt->answers()->pluck('choice', 'question_id');
 
         return view('exam.section', [
@@ -101,7 +107,8 @@ class ExamController extends Controller
     public function finish(Request $request)
     {
         [, $attempt] = $this->current($request->user());
-        $attempt?->update(['finished_at' => now()]);
+        // During the grace period now() is past the deadline; time used must not exceed the duration.
+        $attempt?->update(['finished_at' => now()->min($attempt->deadline())]);
 
         return redirect()->route('exam');
     }
@@ -109,8 +116,20 @@ class ExamController extends Controller
     public function violation(Request $request)
     {
         $user = $request->user();
-        $user->increment('violations');
+        [$section, $attempt] = $this->current($user);
         $max = Setting::current()->max_violations;
+
+        // Only counts while a section is running (not in the waiting room or after finishing).
+        if (! $attempt) {
+            return response()->json(['violations' => $user->violations, 'max' => $max, 'locked' => ! $section]);
+        }
+
+        $user->increment('violations');
+        ViolationLog::create([
+            'user_id' => $user->id,
+            'section_id' => $section->id,
+            'reason' => Str::limit((string) $request->input('reason', 'tidak diketahui'), 97),
+        ]);
         $locked = $max > 0 && $user->violations >= $max;
 
         if ($locked) {
@@ -118,6 +137,21 @@ class ExamController extends Controller
         }
 
         return response()->json(['violations' => $user->violations, 'max' => $max, 'locked' => $locked]);
+    }
+
+    /**
+     * Question order for this participant. With shuffling on, passage groups stay together and in order;
+     * the seed is per user+section so a reload shows the same order.
+     */
+    private function ordered(Section $section, User $user): Collection
+    {
+        if (! Setting::current()->shuffle_questions) {
+            return $section->questions;
+        }
+        $groups = $section->questions->groupBy(fn ($q) => $q->passage_id ? 'p'.$q->passage_id : 'q'.$q->id)->values()->all();
+        $groups = (new Randomizer(new Mt19937($user->id * 1000 + $section->id)))->shuffleArray($groups);
+
+        return collect($groups)->flatten(1);
     }
 
     /** Ends the running section and every section not started yet. */

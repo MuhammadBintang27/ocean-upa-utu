@@ -15,6 +15,22 @@
     <form class="inline" method="post" action="{{ route('admin.participants.reset-exam', $participant) }}" onsubmit="return confirm('Hapus SEMUA jawaban {{ $participant->username }} dan mulai ulang dari awal?')">@csrf<button class="btn btn-sm btn-red">Reset ujian</button></form>
 </div>
 
+@if($participant->violationLogs->isNotEmpty())
+    <div class="card">
+        <h3>Riwayat pelanggaran</h3>
+        <div class="table-wrap">
+        <table>
+            <thead><tr><th>Waktu</th><th>Bagian</th><th>Jenis</th></tr></thead>
+            <tbody>
+            @foreach($participant->violationLogs as $log)
+                <tr><td>{{ $log->created_at->format('H:i:s') }}</td><td>{{ $log->section?->name ?? '-' }}</td><td>{{ $log->reason }}</td></tr>
+            @endforeach
+            </tbody>
+        </table>
+        </div>
+    </div>
+@endif
+
 @foreach($sections as $section)
     @php
         $attempt = $participant->attempts->firstWhere('section_id', $section->id);

@@ -114,6 +114,54 @@ class ExamTest extends TestCase
         $this->get('/exam')->assertSee('Terima kasih');
     }
 
+    public function test_answer_in_grace_period_counts_but_time_is_capped(): void
+    {
+        $this->loginParticipant();
+        Setting::current()->update(['is_open' => true]);
+        $this->get('/exam');
+        $q = Section::orderBy('sort')->first()->questions->first();
+
+        $this->travel(25 * 60 + 5)->seconds(); // 5s past the 25-minute deadline
+        $this->postJson('/exam/answer', ['question_id' => $q->id, 'choice' => 'c'])->assertOk();
+        $this->post('/exam/finish');
+        $this->assertSame(25 * 60, Attempt::first()->secondsUsed());
+    }
+
+    public function test_violations_are_logged_only_during_a_section(): void
+    {
+        $user = $this->loginParticipant();
+        $this->postJson('/exam/violation', ['reason' => 'pindah tab/aplikasi']); // waiting room
+        $this->assertSame(0, $user->fresh()->violations);
+
+        Setting::current()->update(['is_open' => true]);
+        $this->get('/exam');
+        $this->postJson('/exam/violation', ['reason' => 'pindah tab/aplikasi']);
+        $this->assertSame(1, $user->fresh()->violations);
+        $this->assertSame('pindah tab/aplikasi', $user->violationLogs()->first()->reason);
+
+        $this->actingAs(User::create(['username' => 'adm', 'name' => 'Admin', 'password' => 'x', 'is_admin' => true]))
+            ->get(route('admin.participants.show', $user))->assertSee('Riwayat pelanggaran');
+    }
+
+    public function test_shuffle_keeps_passages_together_and_is_stable(): void
+    {
+        $this->loginParticipant();
+        Setting::current()->update(['is_open' => true, 'shuffle_questions' => true]);
+        $this->get('/exam');
+        Attempt::query()->update(['finished_at' => now()]); // move on to the Reading section
+        $reading = Section::orderBy('sort')->skip(1)->first();
+        $this->post('/exam/start');
+
+        $order = fn () => $this->get('/exam')->viewData('section')->questions;
+        $first = $order();
+        $this->assertSame($first->pluck('id')->all(), $order()->pluck('id')->all());
+        $this->assertEqualsCanonicalizing($reading->questions->pluck('id')->all(), $first->pluck('id')->all());
+        $this->assertNotSame($reading->questions->pluck('id')->all(), $first->pluck('id')->all());
+        // Each passage's questions are one consecutive block, in their original order.
+        $runs = $first->pluck('passage_id')->filter()->values()->reduce(fn ($c, $p) => $c->last() === $p ? $c : $c->push($p), collect());
+        $this->assertSame($runs->unique()->count(), $runs->count());
+    }
+
     public function test_ranking_uses_points_then_fastest_time(): void
     {
         $structure = Section::orderBy('sort')->first();

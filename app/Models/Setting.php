@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Setting extends Model
 {
-    protected $fillable = ['is_open', 'max_violations'];
+    protected $fillable = ['is_open', 'max_violations', 'shuffle_questions'];
 
     protected function casts(): array
     {
-        return ['is_open' => 'boolean', 'opened_at' => 'datetime'];
+        return ['is_open' => 'boolean', 'shuffle_questions' => 'boolean', 'opened_at' => 'datetime'];
     }
 
     protected static function booted(): void

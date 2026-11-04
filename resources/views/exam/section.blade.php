@@ -21,6 +21,9 @@
     .nav-grid a { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #fff; border: 1.5px solid var(--line); color: var(--navy); text-decoration: none; font-size: 14px; font-weight: 600; }
     .nav-grid a:hover { border-color: var(--blue); }
     .nav-grid a.done { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .nav-grid a.current { border-color: var(--navy); box-shadow: 0 0 0 2px var(--navy); }
+    .step-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 18px; }
+    .step-nav .btn:disabled { visibility: hidden; }
     body { padding-bottom: 88px; } /* last question/finish button can scroll clear of the floating button */
     .nav-fab { position: fixed; right: 18px; bottom: 18px; z-index: 40; width: 58px; height: 58px; border-radius: 50%; border: 2px solid rgba(255,255,255,.6); background: rgba(36,27,94,.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fff; cursor: pointer; box-shadow: 0 6px 20px rgba(36,27,94,.35); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; transition: transform .12s; }
     .nav-fab:active { transform: scale(.92); }
@@ -78,7 +81,7 @@
     <div class="head"><strong>Navigasi soal</strong><span class="spacer"></span><span class="muted">Biru = sudah dijawab</span></div>
     <div class="nav-grid">
         @foreach($section->questions as $i => $q)
-            <a href="#q{{ $q->id }}" id="nav{{ $q->id }}" class="{{ $choices->has($q->id) ? 'done' : '' }}">{{ $i + 1 }}</a>
+            <a href="#" data-go="{{ $i }}" id="nav{{ $q->id }}" class="{{ $choices->has($q->id) ? 'done' : '' }}">{{ $i + 1 }}</a>
         @endforeach
     </div>
 </div>
@@ -87,35 +90,44 @@
     <div class="card"><strong>Directions:</strong> {{ $section->directions }}</div>
 @endif
 
-@php $lastPassage = null; @endphp
+@php $total = $section->questions->count(); @endphp
 @foreach($section->questions as $i => $q)
-    @if($q->passage_id && $q->passage_id !== $lastPassage)
-        @php
+    @php
+        if ($q->passage_id && $q->passage_id !== ($section->questions[$i - 1] ?? null)?->passage_id) {
             // Number range = this question plus the consecutive ones sharing its passage.
-            $last = $i;
+            $first = $last = $i;
             while (($section->questions[$last + 1] ?? null)?->passage_id === $q->passage_id) $last++;
-        @endphp
-        <div class="card passage-card">
-            <h3><span class="badge badge-blue">Passage</span> {{ $q->passage->title }}</h3>
-            <div class="muted">Text for question no {{ $i + 1 === $last + 1 ? $i + 1 : ($i + 1).'-'.($last + 1) }}</div>
-            <div class="passage">{{ $q->passage->body }}</div>
-        </div>
-    @endif
-    @php $lastPassage = $q->passage_id; @endphp
+        }
+    @endphp
+    <div class="step" id="step{{ $i }}" @if($i) hidden @endif>
+        @if($q->passage_id)
+            <div class="card passage-card">
+                <h3><span class="badge badge-blue">Passage</span> {{ $q->passage->title }}</h3>
+                <div class="muted">Text for question no {{ $first === $last ? $first + 1 : ($first + 1).'-'.($last + 1) }}</div>
+                <div class="passage">{{ $q->passage->body }}</div>
+            </div>
+        @endif
 
-    <div class="card q" id="q{{ $q->id }}">
-        <div class="q-text"><span class="q-num">{{ $i + 1 }}</span><span>{{ $q->text }}</span></div>
-        @foreach(\App\Models\Question::CHOICES as $c)
-            <label class="opt">
-                <input type="radio" name="q{{ $q->id }}" value="{{ $c }}" data-q="{{ $q->id }}" @checked($choices->get($q->id) === $c)>
-                <span class="letter">{{ strtoupper($c) }}</span>
-                <span>{{ $q->{'option_'.$c} }}</span>
-            </label>
-        @endforeach
+        <div class="card q" id="q{{ $q->id }}">
+            <div class="q-text"><span class="q-num">{{ $i + 1 }}</span><span>{{ $q->text }}</span></div>
+            @foreach(\App\Models\Question::CHOICES as $c)
+                <label class="opt">
+                    <input type="radio" name="q{{ $q->id }}" value="{{ $c }}" data-q="{{ $q->id }}" @checked($choices->get($q->id) === $c)>
+                    <span class="letter">{{ strtoupper($c) }}</span>
+                    <span>{{ $q->{'option_'.$c} }}</span>
+                </label>
+            @endforeach
+        </div>
+
+        <div class="step-nav">
+            <button type="button" class="btn btn-gray" data-go="{{ $i - 1 }}" @disabled($i === 0)>&larr; Sebelumnya</button>
+            <span class="muted">Soal {{ $i + 1 }} dari {{ $total }}</span>
+            <button type="button" class="btn" data-go="{{ $i + 1 }}" @disabled($i + 1 === $total)>Berikutnya &rarr;</button>
+        </div>
     </div>
 @endforeach
 
-<div class="card" style="text-align:center">
+<div class="card" id="finish-card" style="text-align:center" @if($total) hidden @endif>
     <form method="post" action="{{ route('exam.finish') }}" id="finish-form">
         @csrf
         <p class="muted">Setelah dikirim, kamu tidak bisa kembali ke bagian ini.</p>
@@ -147,7 +159,18 @@
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
         body: JSON.stringify(body),
     });
-    const finish = () => { leaving = true; loading.show('Mengirim jawaban…'); document.getElementById('finish-form').submit(); };
+    // Waits for unsaved answers first. Manual finish aborts if they still can't be saved; auto-finish at 00:00 sends anyway.
+    const finish = async (auto = false) => {
+        leaving = true;
+        loading.show('Mengirim jawaban…');
+        for (let i = 0; i < 20 && Object.keys(pending).length; i++) await new Promise(r => setTimeout(r, 500));
+        if (Object.keys(pending).length && !auto) {
+            leaving = false;
+            loading.hide();
+            return toast('Masih ada jawaban yang belum tersimpan. Periksa koneksi lalu coba kirim lagi.', 'err');
+        }
+        document.getElementById('finish-form').submit();
+    };
 
     // --- timer (server decides the real deadline; this only displays it) ---
     const timerEl = document.getElementById('timer');
@@ -155,7 +178,7 @@
         const left = Math.max(0, Math.round((end - Date.now()) / 1000));
         timerEl.textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
         timerEl.classList.toggle('low', left <= 300);
-        if (left === 0 && !leaving) finish();
+        if (left === 0 && !leaving) finish(true);
     };
     tick();
     setInterval(tick, 1000);
@@ -167,6 +190,25 @@
     pop.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setNav(false)));
     document.addEventListener('click', e => { if (!pop.hidden && !pop.contains(e.target)) setNav(false); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') setNav(false); });
+
+    // --- one question per page; opens at the first unanswered question ---
+    const steps = document.querySelectorAll('.step'), finishCard = document.getElementById('finish-card');
+    let cur = 0;
+    const go = i => {
+        if (i < 0 || i >= steps.length) return;
+        steps[cur].hidden = true;
+        steps[i].hidden = false;
+        cur = i;
+        finishCard.hidden = i !== steps.length - 1;
+        document.querySelectorAll('.nav-grid a').forEach((a, j) => a.classList.toggle('current', j === i));
+        window.scrollTo(0, 0);
+    };
+    document.addEventListener('click', e => {
+        const t = e.target.closest('[data-go]');
+        if (t) { e.preventDefault(); go(+t.dataset.go); }
+    });
+    const firstOpen = [...steps].findIndex(s => !s.querySelector('input:checked'));
+    go(firstOpen === -1 ? steps.length - 1 : firstOpen);
 
     // --- autosave answers, retrying until the server confirms ---
     const pending = {};

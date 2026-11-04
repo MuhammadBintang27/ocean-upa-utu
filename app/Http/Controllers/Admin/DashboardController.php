@@ -60,6 +60,7 @@ class DashboardController extends Controller
         $data = $request->validate([
             'is_open' => ['boolean'],
             'max_violations' => ['required', 'integer', 'min:0', 'max:100'],
+            'shuffle_questions' => ['boolean'],
             'sections' => ['array'],
             'sections.*.name' => ['required', 'string', 'max:255'],
             'sections.*.directions' => ['nullable', 'string'],
@@ -73,6 +74,7 @@ class DashboardController extends Controller
         Setting::current()->update([
             'is_open' => $request->boolean('is_open'),
             'max_violations' => $data['max_violations'],
+            'shuffle_questions' => $request->boolean('shuffle_questions'),
         ]);
 
         foreach ($data['sections'] ?? [] as $id => $values) {

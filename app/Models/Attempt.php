@@ -9,6 +9,9 @@ use Illuminate\Support\Carbon;
 
 class Attempt extends Model
 {
+    /** Answers sent in the last moments (slow network, auto-submit at 00:00) still count. */
+    public const GRACE_SECONDS = 15;
+
     protected $fillable = ['user_id', 'section_id', 'started_at', 'finished_at'];
 
     protected function casts(): array
@@ -42,7 +45,7 @@ class Attempt extends Model
         if ($this->finished_at) {
             return true;
         }
-        if (now()->greaterThanOrEqualTo($this->deadline())) {
+        if (now()->greaterThanOrEqualTo($this->deadline()->addSeconds(self::GRACE_SECONDS))) {
             $this->update(['finished_at' => $this->deadline()]);
             return true;
         }

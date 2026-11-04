@@ -115,7 +115,7 @@ class ParticipantController extends Controller
 
     public function show(User $participant)
     {
-        $participant->load('attempts.answers');
+        $participant->load(['attempts.answers', 'violationLogs.section']);
 
         return view('admin.participants.show', [
             'participant' => $participant,
@@ -164,6 +164,7 @@ class ParticipantController extends Controller
     public function resetExam(User $participant)
     {
         $participant->attempts()->delete();
+        $participant->violationLogs()->delete();
         $participant->forceFill(['violations' => 0, 'exam_reset' => true])->save();
 
         return back()->with('status', "Ujian {$participant->username} di-reset. Semua jawaban dihapus, waktu section pertama diulang penuh.");
