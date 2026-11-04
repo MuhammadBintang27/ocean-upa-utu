@@ -1,0 +1,157 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Attempt;
+use App\Models\Question;
+use App\Models\Section;
+use App\Models\Setting;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+class ExamController extends Controller
+{
+    public function index(Request $request)
+    {
+        [$section, $attempt] = $this->current($request->user());
+
+        if (! $section) {
+            return view('exam.done');
+        }
+
+        if (! $attempt) {
+            $setting = Setting::current();
+
+            if ($section->id !== Section::orderBy('sort')->value('id')) {
+                return view('exam.intro', ['section' => $section, 'setting' => $setting]);
+            }
+            if (! $setting->is_open) {
+                return view('exam.waiting', ['section' => $section, 'setting' => $setting]);
+            }
+            // First section starts together for everyone; latecomers get only the time left,
+            // unless the committee reset this participant, who then gets the full duration.
+            $user = $request->user();
+            Attempt::firstOrCreate(
+                ['user_id' => $user->id, 'section_id' => $section->id],
+                ['started_at' => $user->exam_reset ? now() : ($setting->opened_at ?? now())],
+            );
+            if ($user->exam_reset) {
+                $user->forceFill(['exam_reset' => false])->save();
+            }
+
+            return redirect()->route('exam');
+        }
+
+        $section->load('questions.passage');
+        $choices = $attempt->answers()->pluck('choice', 'question_id');
+
+        return view('exam.section', [
+            'section' => $section,
+            'attempt' => $attempt,
+            'choices' => $choices,
+            'remaining' => max(0, (int) now()->diffInSeconds($attempt->deadline(), false)),
+            'setting' => Setting::current(),
+            'violations' => $request->user()->violations,
+        ]);
+    }
+
+    public function status()
+    {
+        return response()->json(['open' => Setting::current()->is_open]);
+    }
+
+    public function start(Request $request)
+    {
+        [$section, $attempt] = $this->current($request->user());
+
+        // The first section is started from the waiting room in index(), not here.
+        if ($section && ! $attempt && $section->id !== Section::orderBy('sort')->value('id')) {
+            if (! Setting::current()->is_open) {
+                return back()->withErrors(['start' => 'Ujian belum dibuka oleh panitia.']);
+            }
+            Attempt::firstOrCreate(
+                ['user_id' => $request->user()->id, 'section_id' => $section->id],
+                ['started_at' => now()],
+            );
+        }
+
+        return redirect()->route('exam');
+    }
+
+    public function answer(Request $request)
+    {
+        $data = $request->validate([
+            'question_id' => ['required', 'integer'],
+            'choice' => ['required', Rule::in(Question::CHOICES)],
+        ]);
+
+        [, $attempt] = $this->current($request->user());
+        $question = Question::find($data['question_id']);
+
+        if (! $attempt || ! $question || $question->section_id !== $attempt->section_id) {
+            return response()->json(['ok' => false], 409);
+        }
+
+        $attempt->answers()->updateOrCreate(['question_id' => $question->id], ['choice' => $data['choice']]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function finish(Request $request)
+    {
+        [, $attempt] = $this->current($request->user());
+        $attempt?->update(['finished_at' => now()]);
+
+        return redirect()->route('exam');
+    }
+
+    public function violation(Request $request)
+    {
+        $user = $request->user();
+        $user->increment('violations');
+        $max = Setting::current()->max_violations;
+        $locked = $max > 0 && $user->violations >= $max;
+
+        if ($locked) {
+            $this->lockOut($user);
+        }
+
+        return response()->json(['violations' => $user->violations, 'max' => $max, 'locked' => $locked]);
+    }
+
+    /** Ends the running section and every section not started yet. */
+    private function lockOut(User $user): void
+    {
+        foreach (Section::orderBy('sort')->get() as $section) {
+            $attempt = Attempt::firstOrCreate(
+                ['user_id' => $user->id, 'section_id' => $section->id],
+                ['started_at' => now()],
+            );
+            if (! $attempt->finished_at) {
+                $attempt->update(['finished_at' => now()]);
+            }
+        }
+    }
+
+    /**
+     * The first section the user hasn't finished, with its attempt if started.
+     * Returns [null, null] when everything is done.
+     */
+    private function current(User $user): array
+    {
+        $attempts = $user->attempts()->with('section')->get()->keyBy('section_id');
+
+        foreach (Section::orderBy('sort')->get() as $section) {
+            $attempt = $attempts->get($section->id);
+            if (! $attempt) {
+                return [$section, null];
+            }
+            if (! $attempt->closeIfExpired()) {
+                return [$section, $attempt];
+            }
+        }
+
+        return [null, null];
+    }
+}
