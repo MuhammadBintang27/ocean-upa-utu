@@ -20,6 +20,8 @@ class ExamController extends Controller
     public function index(Request $request)
     {
         [$section, $attempt] = $this->current($request->user());
+        // consumed on every visit (after the first DB call, so a refused connection keeps it for the retry)
+        $wantsStart = $request->session()->pull('wants_start');
 
         if (! $section) {
             return view('exam.done');
@@ -29,23 +31,31 @@ class ExamController extends Controller
             $setting = Setting::current();
 
             if ($section->id !== Section::orderBy('sort')->value('id')) {
-                return view('exam.intro', ['section' => $section, 'setting' => $setting]);
+                if (! $wantsStart || ! $setting->is_open) {
+                    return view('exam.intro', ['section' => $section, 'setting' => $setting]);
+                }
+                $attempt = Attempt::firstOrCreate(
+                    ['user_id' => $request->user()->id, 'section_id' => $section->id],
+                    ['started_at' => now()],
+                );
+                $attempt->setRelation('section', $section);
+            } else {
+                if (! $setting->is_open) {
+                    return view('exam.waiting', ['section' => $section, 'setting' => $setting]);
+                }
+                // First section starts together for everyone; latecomers get only the time left,
+                // unless the committee reset this participant, who then gets the full duration.
+                $user = $request->user();
+                $attempt = Attempt::firstOrCreate(
+                    ['user_id' => $user->id, 'section_id' => $section->id],
+                    ['started_at' => $user->exam_reset ? now() : ($setting->opened_at ?? now())],
+                );
+                $attempt->setRelation('section', $section);
+                if ($user->exam_reset) {
+                    $user->forceFill(['exam_reset' => false])->save();
+                }
             }
-            if (! $setting->is_open) {
-                return view('exam.waiting', ['section' => $section, 'setting' => $setting]);
-            }
-            // First section starts together for everyone; latecomers get only the time left,
-            // unless the committee reset this participant, who then gets the full duration.
-            $user = $request->user();
-            $attempt = Attempt::firstOrCreate(
-                ['user_id' => $user->id, 'section_id' => $section->id],
-                ['started_at' => $user->exam_reset ? now() : ($setting->opened_at ?? now())],
-            );
-            $attempt->setRelation('section', $section);
-            if ($user->exam_reset) {
-                $user->forceFill(['exam_reset' => false])->save();
-            }
-            // render right away instead of redirecting: one request per participant at the start, not two
+            // render right away instead of redirecting: the clock starts in the request that delivers the questions
         }
 
         $section->load('questions.passage');
@@ -81,20 +91,14 @@ class ExamController extends Controller
         return response()->json(['open' => Setting::isOpen(), 'present' => $present, 'total' => $total]);
     }
 
+    /**
+     * "Start" on a later section's intro only marks the wish to start. The attempt (and its clock) is created
+     * by index() in the same request that delivers the questions, so a request refused while the server is
+     * busy costs the participant no exam time. No DB here.
+     */
     public function start(Request $request)
     {
-        [$section, $attempt] = $this->current($request->user());
-
-        // The first section is started from the waiting room in index(), not here.
-        if ($section && ! $attempt && $section->id !== Section::orderBy('sort')->value('id')) {
-            if (! Setting::current()->is_open) {
-                return back()->withErrors(['start' => 'Ujian belum dibuka oleh panitia.']);
-            }
-            Attempt::firstOrCreate(
-                ['user_id' => $request->user()->id, 'section_id' => $section->id],
-                ['started_at' => now()],
-            );
-        }
+        $request->session()->put('wants_start', true);
 
         return redirect()->route('exam');
     }

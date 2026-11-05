@@ -164,13 +164,16 @@
     // Waits for unsaved answers first. Manual finish aborts if they still can't be saved; auto-finish at 00:00 sends anyway.
     const finish = async (auto = false) => {
         leaving = true;
-        loading.show('Mengirim jawaban…');
-        for (let i = 0; i < 20 && Object.keys(pending).length; i++) await new Promise(r => setTimeout(r, 500));
+        loading.show(auto ? 'Waktu habis, menyimpan jawaban…' : 'Mengirim jawaban…');
+        // at 00:00 keep retrying unsaved answers through the server's grace window (Attempt::GRACE_SECONDS = 30)
+        for (let i = 0; i < (auto ? 50 : 20) && Object.keys(pending).length; i++) await new Promise(r => setTimeout(r, 500));
         if (Object.keys(pending).length && !auto) {
             leaving = false;
             loading.hide();
             return toast('Masih ada jawaban yang belum tersimpan. Periksa koneksi lalu coba kirim lagi.', 'err');
         }
+        // Everyone's timer ends in the same second; spread the finish requests (the server closes the attempt anyway).
+        if (auto) await new Promise(r => setTimeout(r, Math.random() * 15000));
         document.getElementById('finish-form').submit();
     };
 

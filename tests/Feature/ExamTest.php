@@ -71,7 +71,14 @@ class ExamTest extends TestCase
         $this->postJson('/exam/answer', ['question_id' => $q->id, 'choice' => 'a'])->assertStatus(409);
         $this->get('/exam')->assertSee('Mulai '.$reading->name);
 
-        $this->post('/exam/start');
+        $this->post('/exam/start')->assertRedirect(route('exam'));
+        $this->assertSame(1, $user->attempts()->count()); // clicking start alone doesn't start the clock
+        $this->travel(30)->seconds(); // e.g. stuck on the busy page
+        $this->get('/exam')->assertOk()->assertSee('Terjawab');
+        $readingAttempt = $user->attempts()->where('section_id', $reading->id)->first();
+        $this->assertEqualsWithDelta(now()->timestamp, $readingAttempt->started_at->timestamp, 2); // clock starts when questions arrive
+        $this->get('/exam')->assertSee('Terjawab'); // a reload keeps the same attempt
+        $this->assertSame(2, $user->attempts()->count());
         $this->post('/exam/finish');
         $this->get('/exam')->assertSee('Terima kasih');
         $this->assertSame('c', $user->attempts()->where('section_id', $structure->id)->first()->answers->first()->choice);

@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 class Attempt extends Model
 {
     /** Answers sent in the last moments (slow network, auto-submit at 00:00) still count. */
-    public const GRACE_SECONDS = 15;
+    public const GRACE_SECONDS = 30;
 
     protected $fillable = ['user_id', 'section_id', 'started_at', 'finished_at'];
 
