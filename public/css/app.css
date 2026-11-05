@@ -185,6 +185,11 @@ td.actions form, td.actions a { margin-left: 4px; }
 }
 .public .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
 .public .wrap { position: relative; z-index: 1; }
+/* sticky footer: short pages push the UPA logo to the bottom of the screen */
+body.public { min-height: 100vh; display: flex; flex-direction: column; }
+.public .wrap { flex: 1; width: 100%; display: flex; flex-direction: column; }
+.public .wrap > * { flex-shrink: 0; }
+.public .page-foot { margin-top: auto; }
 .public .logo { display: block; margin: 4px auto 10px; width: 100%; max-width: 340px; height: auto; filter: drop-shadow(0 8px 18px rgba(36, 27, 94, .18)); }
 
 /* ---------- decorations (waves, bubbles, leaves) ---------- */

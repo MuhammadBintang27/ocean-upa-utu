@@ -1,6 +1,6 @@
 <?php
 
-// Answer keys are a DRAFT, verify before the contest.
+// Answer keys checked against Kunci_Jawaban_READING_COMPREHENSION.docx.
 return [
     [
         'title' => 'The Discovery of Penicillin',

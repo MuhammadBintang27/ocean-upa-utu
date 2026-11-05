@@ -61,7 +61,7 @@
         @forelse($participants as $p)
             <tr>
                 <td><strong>{{ $p->username }}</strong></td>
-                <td>@if($p->plain_password)<span class="pw" onclick="this.classList.toggle('show')">{{ $p->plain_password }}</span>@else<span class="muted">—</span>@endif</td>
+                <td>@if($p->plain_password)<span class="pw" onclick="this.classList.toggle('show')">{{ $p->plain_password }}</span>@else<span class="muted">-</span>@endif</td>
                 <td>{{ $p->name }}</td>
                 <td>{{ $p->school }}</td>
                 <td>@if($p->device_token)<span class="badge badge-yellow">terkunci</span>@else<span class="badge">bebas</span>@endif</td>

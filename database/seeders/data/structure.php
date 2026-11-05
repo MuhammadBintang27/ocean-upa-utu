@@ -1,6 +1,6 @@
 <?php
 
-// [question, a, b, c, d, answer key] — keys are a DRAFT, verify before the contest.
+// [question, a, b, c, d, answer key], keys checked against Kunci_Jawaban_STRUCTURE.docx.
 return [
     ['The doctor suggested that he ______ more rest.', 'Takes', 'Took', 'Take', 'Taking', 'c'],
     ['The student in the class, along with their teacher, ______ going on a trip tomorrow.', 'Is', 'Am', 'Were', 'Be', 'a'],

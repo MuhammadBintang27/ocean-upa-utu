@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Structure',
             'sort' => 1,
             'duration_minutes' => 25,
-            'directions' => 'In this section, you will be given several incomplete sentences. Choose the one word — A, B, C or D — that best completes the sentence. Select the appropriate answer for each by clicking on it.',
+            'directions' => 'In this section, you will be given several incomplete sentences. For each sentence, choose the one word or phrase (A, B, C, or D) that best completes it. Click on your answer to select it.',
         ]);
         $this->questions($structure, null, require __DIR__.'/data/structure.php');
 
@@ -34,7 +34,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Reading Comprehension',
             'sort' => 2,
             'duration_minutes' => 45,
-            'directions' => "In this section, you will read several passages. Each one is followed by a number of questions about it. Choose the one best answer — A, B, C or D — to each question. As you're going through the questions, select the appropriate answer for each by clicking on it.",
+            'directions' => "In this section, you will read several passages, each followed by a number of questions. For each question, choose the best answer (A, B, C, or D) based on what is stated or implied in the passage. Click on your answer to select it.",
         ]);
         $sort = 0;
         foreach (require __DIR__.'/data/reading.php' as $i => $p) {

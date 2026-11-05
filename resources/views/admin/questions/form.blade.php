@@ -17,7 +17,7 @@
         <div>
             <label>Passage <span class="muted">(opsional)</span></label>
             <select name="passage_id">
-                <option value="">— tanpa passage —</option>
+                <option value="">(tanpa passage)</option>
                 @foreach($passages as $p)<option value="{{ $p->id }}" @selected(old('passage_id', $question->passage_id) == $p->id)>{{ $p->title }}</option>@endforeach
             </select>
         </div>
