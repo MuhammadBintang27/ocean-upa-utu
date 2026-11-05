@@ -225,7 +225,7 @@
             } catch (e) {
                 if (!saveState.textContent.startsWith('⚠')) toast('Jawaban gagal tersimpan. Periksa koneksi, sistem mencoba lagi otomatis.', 'err');
                 saveState.textContent = '⚠ Gagal menyimpan, mencoba lagi…';
-                return setTimeout(flush, 3000);
+                return setTimeout(flush, 1500 + Math.random() * 3000); // jitter so retries don't arrive in one wave
             }
         }
         saveState.textContent = '✓ Tersimpan';

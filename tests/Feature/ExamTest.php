@@ -59,7 +59,7 @@ class ExamTest extends TestCase
 
         Setting::current()->update(['is_open' => true]);
         $this->getJson('/exam/status')->assertJson(['open' => true]);
-        $this->get('/exam')->assertRedirect(route('exam'));
+        $this->get('/exam')->assertOk()->assertSee('Terjawab'); // starts and renders in one request
         $this->get('/exam')->assertOk()->assertSee('Terjawab');
 
         $q = $structure->questions->first();
@@ -275,5 +275,28 @@ class ExamTest extends TestCase
         $this->getJson('/admin/lobby/data')->assertJsonPath('present.0.status', ['Structure', 'work']);
         $user->forceFill(['violations' => 99])->save();
         $this->getJson('/admin/lobby/data')->assertJsonPath('present.0.status', ['Terkunci', 'locked']);
+    }
+
+    public function test_waiting_room_poll_makes_no_db_queries_once_cached(): void
+    {
+        $this->loginParticipant();
+        $this->getJson('/exam/status')->assertOk(); // warms the cached open flag and counts
+
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+        $this->getJson('/exam/status')->assertOk()->assertJsonPath('present', 1);
+        $this->assertSame([], \Illuminate\Support\Facades\DB::getQueryLog());
+
+        $this->post('/logout');
+        $this->getJson('/exam/status')->assertStatus(401);
+    }
+
+    public function test_refused_db_connection_shows_auto_retry_page_not_500(): void
+    {
+        \Illuminate\Support\Facades\Route::get('/_busy', fn () => throw new \Illuminate\Database\QueryException(
+            'mysql', 'select 1', [], new \PDOException('SQLSTATE[HY000] [2002] Operation not permitted')
+        ));
+
+        $this->get('/_busy')->assertStatus(503)->assertSee('Server sedang ramai')->assertHeader('Retry-After');
+        $this->getJson('/_busy')->assertStatus(503)->assertJsonPath('message', 'Server sedang ramai, coba lagi.');
     }
 }

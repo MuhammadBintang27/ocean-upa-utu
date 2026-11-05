@@ -21,6 +21,13 @@ class Setting extends Model
                 $setting->opened_at = now();
             }
         });
+        static::saved(fn () => \Illuminate\Support\Facades\Cache::forget('exam:open'));
+    }
+
+    /** Cached so the waiting-room poll never opens a DB connection (shared hosting allows only 50). */
+    public static function isOpen(): bool
+    {
+        return \Illuminate\Support\Facades\Cache::remember('exam:open', 3, fn () => static::current()->is_open);
     }
 
     public static function current(): self

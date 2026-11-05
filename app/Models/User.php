@@ -21,11 +21,11 @@ class User extends Authenticatable
     protected $fillable = ['name', 'username', 'school', 'password', 'plain_password', 'is_admin', 'avatar'];
 
     /** Mark this participant as present in the waiting room (refreshed by its status poll). */
-    public function markInLobby(): void
+    public static function markInLobby(int $id): void
     {
         // shortcut: presence lives in the cache for 30s, written at most once per 30s; move to DB if the cache driver changes to array
-        if (! \Illuminate\Support\Facades\Cache::has("lobby:{$this->id}")) {
-            \Illuminate\Support\Facades\Cache::put("lobby:{$this->id}", true, 30);
+        if (! \Illuminate\Support\Facades\Cache::has("lobby:{$id}")) {
+            \Illuminate\Support\Facades\Cache::put("lobby:{$id}", true, 30);
         }
     }
 

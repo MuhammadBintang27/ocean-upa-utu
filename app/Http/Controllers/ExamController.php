@@ -37,15 +37,15 @@ class ExamController extends Controller
             // First section starts together for everyone; latecomers get only the time left,
             // unless the committee reset this participant, who then gets the full duration.
             $user = $request->user();
-            Attempt::firstOrCreate(
+            $attempt = Attempt::firstOrCreate(
                 ['user_id' => $user->id, 'section_id' => $section->id],
                 ['started_at' => $user->exam_reset ? now() : ($setting->opened_at ?? now())],
             );
+            $attempt->setRelation('section', $section);
             if ($user->exam_reset) {
                 $user->forceFill(['exam_reset' => false])->save();
             }
-
-            return redirect()->route('exam');
+            // render right away instead of redirecting: one request per participant at the start, not two
         }
 
         $section->load('questions.passage');
@@ -62,15 +62,23 @@ class ExamController extends Controller
         ]);
     }
 
+    /**
+     * Waiting-room poll (every participant, every few seconds). Deliberately skips the auth middleware:
+     * the user id comes straight from the session so this request makes no DB connection.
+     */
     public function status(Request $request)
     {
-        $request->user()->markInLobby();
+        $id = $request->session()->get(\Illuminate\Support\Facades\Auth::guard()->getName());
+        if (! $id) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+        User::markInLobby((int) $id);
         // cached so 200 polling participants don't each scan the whole participant list
         [$present, $total] = \Illuminate\Support\Facades\Cache::remember('lobby:count', 10, fn () => [
             User::inLobby()->count(), User::where('is_admin', false)->count(),
         ]);
 
-        return response()->json(['open' => Setting::current()->is_open, 'present' => $present, 'total' => $total]);
+        return response()->json(['open' => Setting::isOpen(), 'present' => $present, 'total' => $total]);
     }
 
     public function start(Request $request)

@@ -13,6 +13,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 });
 
+// Outside 'auth' on purpose: reads the user id from the session so the poll needs no DB connection.
+Route::get('/exam/status', [ExamController::class, 'status'])->name('exam.status');
+
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
@@ -20,7 +23,6 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('participant')->prefix('exam')->group(function () {
         Route::get('/', [ExamController::class, 'index'])->name('exam');
-        Route::get('/status', [ExamController::class, 'status'])->name('exam.status');
         Route::post('/start',[ExamController::class, 'start'])->name('exam.start');
         Route::post('/answer', [ExamController::class, 'answer'])->name('exam.answer');
         Route::post('/finish', [ExamController::class, 'finish'])->name('exam.finish');

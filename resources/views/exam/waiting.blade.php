@@ -243,7 +243,11 @@
             const res = await fetch(@json(route('exam.status')), { headers: { Accept: 'application/json' } });
             if (res.redirected || res.status === 401) return location.reload(); // session ended
             const d = await res.json();
-            if (d.open) { loading.show('Ujian dimulai! Menyiapkan soal…'); location.reload(); }
+            if (d.open) {
+                loading.show('Ujian dimulai! Menyiapkan soal…');
+                // spread 200 page loads over a few seconds: the host allows only 50 DB connections at once
+                return setTimeout(() => location.reload(), Math.random() * 6000);
+            }
             document.getElementById('presence').textContent = `${d.present} dari ${d.total} peserta sudah hadir`;
         } catch (e) {}
     };
