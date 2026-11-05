@@ -196,7 +196,7 @@ class ExamTest extends TestCase
         $path = tempnam(sys_get_temp_dir(), 'imp').'.xlsx';
         (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book))->save($path);
 
-        $this->post('/login', ['username' => 'admin', 'password' => 'admin123']);
+        $this->post('/login', ['username' => 'admin', 'password' => 'Ocean@Utu2026']);
         $this->post('/admin/participants', ['name' => '=1+1', 'school' => 'SMA X']);
         $this->post('/admin/participants/import', ['file' => new \Illuminate\Http\UploadedFile($path, 'peserta.xlsx', null, null, true)])
             ->assertSessionHasNoErrors();
@@ -230,7 +230,7 @@ class ExamTest extends TestCase
     {
         $p = User::create(['username' => 'p1', 'name' => 'Peserta', 'password' => 'x']);
         $p->attempts()->create(['section_id' => Section::first()->id, 'started_at' => now()]);
-        $this->post('/login', ['username' => 'admin', 'password' => 'admin123']);
+        $this->post('/login', ['username' => 'admin', 'password' => 'Ocean@Utu2026']);
         $pages = ['/admin', '/admin/participants', "/admin/participants/{$p->id}", "/admin/participants/{$p->id}/edit",
             '/admin/questions', '/admin/questions/create', '/admin/questions/1/edit', '/admin/passages/create', '/admin/passages/1/edit',
             '/admin/settings', '/admin/export', '/admin/participants/template', '/admin/participants/accounts'];

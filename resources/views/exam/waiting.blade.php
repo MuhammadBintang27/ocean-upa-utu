@@ -40,6 +40,8 @@
     .game-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
     .btn.btn-soft { background: var(--blue-50); color: var(--blue-700); }
     .btn.btn-soft:hover { background: var(--blue-100); }
+    .btn.btn-soft:disabled { opacity: .45; cursor: not-allowed; }
+    .game [hidden] { display: none !important; }
     .game .msg { min-height: 22px; font-weight: 700; margin: 14px 0 0; color: var(--navy); }
 </style>
 @endpush
@@ -72,6 +74,7 @@
                 <div class="tiles" id="tiles"></div>
                 <p class="msg" id="msg" role="status"></p>
                 <div class="game-actions">
+                    <button type="button" class="btn btn-soft" id="hint"><svg class="i" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V16h8v-1.3A7 7 0 0 0 12 2z"/></svg>Petunjuk (<span id="hintLeft">3</span>)</button>
                     <button type="button" class="btn btn-soft" id="reshuffle"><svg class="i" viewBox="0 0 24 24"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>Acak</button>
                     <button type="button" class="btn btn-soft" id="clear"><svg class="i" viewBox="0 0 24 24"><path d="M21 5H8l-6 7 6 7h13a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM12 9l6 6M18 9l-6 6"/></svg>Hapus</button>
                     <button type="button" class="btn btn-soft" id="skip"><svg class="i" viewBox="0 0 24 24"><path d="M5 4l10 8-10 8zM19 5v14"/></svg>Lewati</button>
@@ -110,7 +113,8 @@
         const $ = id => document.getElementById(id);
         const slotsEl = $('slots'), tilesEl = $('tiles'), msg = $('msg');
         const order = WORDS.map((_, i) => i).sort(() => Math.random() - .5);
-        let next = 0, score = 0, answer, picked, locked; // picked = letter tiles in answer order
+        let next = 0, score = 0, answer, mean, picked, locked; // picked = letter tiles in answer order
+        let hints = 3, streak = 0, hinted; // +1 hint for every 3 words solved without one
 
         const shuffle = w => { let s; do s = [...w].sort(() => Math.random() - .5).join(''); while (s === w); return s; };
 
@@ -131,7 +135,10 @@
             locked = true;
             if (picked.map(t => t.textContent).join('') === answer) {
                 $('score').textContent = ++score;
-                slotsEl.classList.add('win'); say('Benar! Lanjut ke kata berikutnya.', 'ok');
+                let bonus = '';
+                if (!hinted && ++streak % 3 === 0) { hints++; bonus = ' +1 petunjuk!'; }
+                slotsEl.classList.add('win'); say(`Benar! ${answer} = ${mean}.${bonus}`, 'ok');
+                updateHint();
                 setTimeout(nextWord, 1200);
             } else {
                 slotsEl.classList.add('lose'); say('Belum tepat, coba lagi.', 'no');
@@ -152,20 +159,32 @@
         }
 
         function nextWord() {
-            const [w, cat, mean] = WORDS[order[next++ % order.length]];
-            answer = w; locked = false;
+            const [w, cat, m] = WORDS[order[next++ % order.length]];
+            answer = w; mean = m; locked = false; hinted = false;
             $('cat').innerHTML = ICON[cat] + cat + ' · ' + w.length + ' huruf';
-            $('mean').innerHTML = ICON.hint + '<span></span>'; $('mean').lastChild.textContent = mean;
+            $('mean').hidden = true;
+            updateHint();
             say('Ketuk huruf atau ketik dengan keyboard.');
             deal(shuffle(w));
         }
 
         $('gameStart').onclick = () => { $('gameOffer').hidden = true; $('gameBox').hidden = false; nextWord(); };
-        $('reshuffle').onclick = () => { if (!locked) deal(shuffle(answer)); };
+        function updateHint() {
+            $('hintLeft').textContent = hints;
+            $('hint').disabled = hinted || hints === 0;
+        }
+        $('hint').onclick = () => {
+            if (locked || hinted || !hints) return;
+            hints--; hinted = true; streak = 0;
+            $('mean').innerHTML = ICON.hint + '<span></span>'; $('mean').lastChild.textContent = mean;
+            $('mean').hidden = false;
+            updateHint();
+        };
+        $('reshuffle').onclick =() => { if (!locked) deal(shuffle(answer)); };
         $('clear').onclick = () => { if (!locked) { picked.pop(); sync(); } };
         $('skip').onclick = () => {
             if (locked) return;
-            locked = true; say('Jawabannya: ' + answer.toUpperCase(), 'eye');
+            locked = true; streak = 0; say(`Jawabannya: ${answer.toUpperCase()} (${mean})`, 'eye');
             setTimeout(nextWord, 1500);
         };
         document.addEventListener('keydown', e => {

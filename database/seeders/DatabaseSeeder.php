@@ -13,7 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         User::updateOrCreate(
             ['username' => env('ADMIN_USERNAME', 'admin')],
-            ['name' => 'Administrator', 'password' => env('ADMIN_PASSWORD', 'admin123'), 'is_admin' => true],
+            ['name' => 'Administrator', 'password' => env('ADMIN_PASSWORD', 'Ocean@Utu2026'), 'is_admin' => true],
         );
 
         Setting::current();
