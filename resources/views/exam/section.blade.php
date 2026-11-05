@@ -9,6 +9,7 @@
     .exam-bar { position: sticky; top: 0; z-index: 30; background: linear-gradient(90deg, var(--navy), var(--blue-700) 60%, var(--blue)); color: #fff; box-shadow: 0 4px 16px rgba(36,27,94,.25); }
     .exam-bar .inner { max-width: 860px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
     .exam-bar img { height: 42px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.25)); }
+    .exam-bar img.me { height: 40px; width: 40px; border-radius: 50%; filter: none; box-shadow: 0 0 0 2px rgba(255,255,255,.85); }
     .exam-bar .title { font-weight: 700; font-size: 16px; line-height: 1.2; }
     .exam-bar .sub { font-size: 12.5px; color: #cdd6ff; }
     .exam-bar .sub b { color: #fff; }
@@ -67,6 +68,7 @@
             </div>
         </div>
         <span class="spacer"></span>
+        @if(auth()->user()->avatarUrl())<img class="me" src="{{ auth()->user()->avatarUrl() }}" alt="" title="{{ auth()->user()->name }}">@endif
         <span class="timer" id="timer" aria-label="Sisa waktu">--:--</span>
     </div>
     <div class="progress"><div id="progress" style="width:{{ $section->questions->count() ? round($choices->count() / $section->questions->count() * 100) : 0 }}%"></div></div>

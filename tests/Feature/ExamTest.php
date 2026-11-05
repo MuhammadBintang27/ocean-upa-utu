@@ -242,4 +242,38 @@ class ExamTest extends TestCase
             $this->assertStringStartsWith('%PDF', $pdf->getContent());
         }
     }
+
+    public function test_participant_can_pick_only_listed_avatars(): void
+    {
+        $user = $this->loginParticipant();
+
+        $this->postJson('/exam/avatar', ['avatar' => 'penyu'])->assertOk()->assertJsonPath('avatar', 'penyu');
+        $this->assertSame('penyu', $user->fresh()->avatar);
+        $this->get('/exam')->assertSee('image/avatars/penyu.svg');
+
+        $this->postJson('/exam/avatar', ['avatar' => '../../etc'])->assertStatus(422);
+        $this->assertSame('penyu', $user->fresh()->avatar);
+    }
+
+    public function test_lobby_shows_waiting_participants_and_start_opens_exam(): void
+    {
+        $user = $this->loginParticipant();
+        $this->getJson('/exam/status')->assertOk()->assertJsonPath('open', false)->assertJsonPath('present', 1);
+
+        $this->post('/logout');
+        $this->post('/login', ['username' => 'admin', 'password' => 'Ocean@Utu2026']);
+        $this->get('/admin/lobby')->assertOk()->assertSee('MULAI UJIAN');
+        $this->getJson('/admin/lobby/data')->assertOk()->assertJsonPath('present.0.id', $user->id)->assertJsonPath('total', 1);
+
+        $this->postJson('/admin/open')->assertOk();
+        $this->postJson('/admin/open')->assertOk(); // double click must not close it again
+        $this->assertTrue(Setting::current()->is_open);
+
+        // after the start the board shows progress from the DB, not waiting-room presence
+        $this->getJson('/admin/lobby/data')->assertJsonPath('present.0.status', ['Belum masuk', 'absent']);
+        Attempt::create(['user_id' => $user->id, 'section_id' => Section::orderBy('sort')->value('id'), 'started_at' => now()]);
+        $this->getJson('/admin/lobby/data')->assertJsonPath('present.0.status', ['Structure', 'work']);
+        $user->forceFill(['violations' => 99])->save();
+        $this->getJson('/admin/lobby/data')->assertJsonPath('present.0.status', ['Terkunci', 'locked']);
+    }
 }

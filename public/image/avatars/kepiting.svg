@@ -1,0 +1,23 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="kepiting">
+  <clipPath id="clip-kepiting"><circle cx="60" cy="60" r="60"/></clipPath>
+  <g clip-path="url(#clip-kepiting)"><rect width="120" height="120" fill="#ffedd0"/>
+  <path d="M0 100 q30 -7 60 0 t60 0 V120 H0z" fill="#f7d9a2"/>
+  <g stroke="#c9412d" stroke-width="5" stroke-linecap="round" fill="none">
+    <path d="M32 84 l-15 10 M33 91 l-12 13 M88 84 l15 10 M87 91 l12 13"/>
+  </g>
+  <g stroke="#dc4c36" stroke-width="6.5" stroke-linecap="round" fill="none">
+    <path d="M36 72 q-12 -4 -14 -18 M84 72 q12 -4 14 -18"/>
+  </g>
+  <circle cx="22" cy="44" r="13" fill="#e8553f"/><path d="M22 44 L35 27 L37 42z" fill="#ffedd0"/>
+  <circle cx="98" cy="44" r="13" fill="#e8553f"/><path d="M98 44 L85 27 L83 42z" fill="#ffedd0"/>
+  <ellipse cx="17" cy="40" rx="4" ry="2.5" fill="#fff" opacity=".38" transform="rotate(-25 17 40)"/><ellipse cx="93" cy="40" rx="4" ry="2.5" fill="#fff" opacity=".38" transform="rotate(-25 93 40)"/>
+  <g stroke="#e8553f" stroke-width="5" stroke-linecap="round"><path d="M50 58 L47 40 M70 58 L73 40"/></g>
+  <ellipse cx="60" cy="76" rx="35" ry="25" fill="#e8553f"/>
+  <path d="M25 78 c2 13 16 23 35 23 c19 0 33 -10 35 -23 c-7 8 -19 13 -35 13 c-16 0 -28 -5 -35 -13z" fill="#d1452f"/>
+  <ellipse cx="44" cy="62" rx="9" ry="4.5" fill="#fff" opacity=".38" transform="rotate(-25 44 62)"/>
+  <circle cx="47" cy="37" r="9" fill="#fff"/><circle cx="73" cy="37" r="9" fill="#fff"/>
+  <circle cx="48" cy="38" r="4.6" fill="#1d1640"/><circle cx="49.8" cy="36.2" r="1.7" fill="#fff"/>
+  <circle cx="72" cy="38" r="4.6" fill="#1d1640"/><circle cx="73.8" cy="36.2" r="1.7" fill="#fff"/>
+  <ellipse cx="41" cy="80" rx="5.5" ry="3.2" fill="#ff9aa9" opacity=".6"/><ellipse cx="79" cy="80" rx="5.5" ry="3.2" fill="#ff9aa9" opacity=".6"/>
+  <path d="M52 77 q8 7 16 0" stroke="#1d1640" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  </g></svg>

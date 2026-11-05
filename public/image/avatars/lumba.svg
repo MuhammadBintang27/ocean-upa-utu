@@ -1,0 +1,19 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="lumba">
+  <clipPath id="clip-lumba"><circle cx="60" cy="60" r="60"/></clipPath>
+  <g clip-path="url(#clip-lumba)"><rect width="120" height="120" fill="#d9e6ff"/>
+  <path d="M0 96 q15 -7 30 0 t30 0 t30 0 t30 0 V120 H0z" fill="#c4d6fb"/>
+  <path d="M14 120 q46 -46 92 0z" fill="#4f7fd2"/>
+  <path d="M56 32 q8 -20 28 -18 q-13 7 -11 24z" fill="#3e6cc0"/>
+  <path d="M60 26 c22 0 35 18 35 39 c0 22 -16 34 -35 34 c-19 0 -35 -12 -35 -34 c0 -21 13 -39 35 -39z" fill="#5c8fe2"/>
+  <path d="M25.5 70 c3 18 17 29 34.5 29 c17.5 0 31.5 -11 34.5 -29 c-6 12 -18 20 -34.5 20 c-16.5 0 -28.5 -8 -34.5 -20z" fill="#4f80d4"/>
+  <ellipse cx="60" cy="81" rx="23" ry="14" fill="#cfe0fb"/>
+  <ellipse cx="60" cy="86" rx="12" ry="7.5" fill="#e6effd"/>
+  <ellipse cx="60" cy="35" rx="3.2" ry="1.7" fill="#3e6cc0"/>
+  <ellipse cx="45" cy="42" rx="9" ry="4.5" fill="#fff" opacity=".38" transform="rotate(-25 45 42)"/>
+  
+  <ellipse cx="40" cy="73" rx="5.5" ry="3.2" fill="#ff6f8e" opacity=".42"/>
+  <ellipse cx="80" cy="73" rx="5.5" ry="3.2" fill="#ff6f8e" opacity=".42"/>
+  <circle cx="47" cy="61" r="5.4" fill="#1d1640"/><circle cx="48.9" cy="59" r="1.94" fill="#fff"/>
+  <circle cx="73" cy="61" r="5.4" fill="#1d1640"/><circle cx="74.9" cy="59" r="1.94" fill="#fff"/>
+  <path d="M53.0 83 q7.0 7.7 14 0" stroke="#1d1640" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  </g></svg>

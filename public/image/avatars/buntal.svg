@@ -1,0 +1,16 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="buntal">
+  <clipPath id="clip-buntal"><circle cx="60" cy="60" r="60"/></clipPath>
+  <g clip-path="url(#clip-buntal)"><rect width="120" height="120" fill="#fff3c2"/>
+  <path d="M0 98 q15 -7 30 0 t30 0 t30 0 t30 0 V120 H0z" fill="#ffe89a"/>
+  <ellipse cx="22" cy="70" rx="9" ry="6" fill="#efad2c" transform="rotate(-25 22 70)"/>
+  <ellipse cx="98" cy="70" rx="9" ry="6" fill="#efad2c" transform="rotate(25 98 70)"/>
+  <path d="M56.2 31.2 L60.0 21.0 L63.8 31.2Z M69.9 32.6 L77.8 25.1 L76.8 35.9Z M81.7 39.8 L92.1 36.4 L86.4 45.8Z M89.1 51.4 L100.0 52.9 L90.8 58.9Z M90.8 65.1 L100.0 71.1 L89.1 72.6Z M86.4 78.2 L92.1 87.6 L81.7 84.2Z M76.8 88.1 L77.8 98.9 L69.9 91.4Z M63.8 92.8 L60.0 103.0 L56.2 92.8Z M50.1 91.4 L42.2 98.9 L43.2 88.1Z M38.3 84.2 L27.9 87.6 L33.6 78.2Z M30.9 72.6 L20.0 71.1 L29.2 65.1Z M29.2 58.9 L20.0 52.9 L30.9 51.4Z M33.6 45.8 L27.9 36.4 L38.3 39.8Z M43.2 35.9 L42.2 25.1 L50.1 32.6Z" fill="#e9a326" stroke="#e9a326" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="60" cy="62" r="33" fill="#f9c843"/>
+  <path d="M28 70 c4 15 17 25 32 25 c15 0 28 -10 32 -25 c-8 9 -19 13 -32 13 c-13 0 -24 -4 -32 -13z" fill="#fde5a0"/>
+  <g fill="#e9a326"><circle cx="54" cy="36" r="2"/><circle cx="66" cy="34" r="2"/><circle cx="76" cy="40" r="2"/><circle cx="44" cy="41" r="1.8"/></g>
+  <ellipse cx="45" cy="44" rx="9" ry="4.5" fill="#fff" opacity=".38" transform="rotate(-25 45 44)"/>
+  <ellipse cx="41" cy="69" rx="5.5" ry="3.2" fill="#ff6f8e" opacity=".42"/><ellipse cx="79" cy="69" rx="5.5" ry="3.2" fill="#ff6f8e" opacity=".42"/>
+  <circle cx="48" cy="58" r="6" fill="#1d1640"/><circle cx="50" cy="55.8" r="2.2" fill="#fff"/>
+  <circle cx="72" cy="58" r="6" fill="#1d1640"/><circle cx="74" cy="55.8" r="2.2" fill="#fff"/>
+  <ellipse cx="60" cy="74" rx="5" ry="4.2" fill="#e8553f"/><ellipse cx="60" cy="75" rx="2.6" ry="2" fill="#a8322a"/>
+  </g></svg>

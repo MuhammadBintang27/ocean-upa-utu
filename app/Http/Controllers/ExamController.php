@@ -62,9 +62,15 @@ class ExamController extends Controller
         ]);
     }
 
-    public function status()
+    public function status(Request $request)
     {
-        return response()->json(['open' => Setting::current()->is_open]);
+        $request->user()->markInLobby();
+        // cached so 200 polling participants don't each scan the whole participant list
+        [$present, $total] = \Illuminate\Support\Facades\Cache::remember('lobby:count', 10, fn () => [
+            User::inLobby()->count(), User::where('is_admin', false)->count(),
+        ]);
+
+        return response()->json(['open' => Setting::current()->is_open, 'present' => $present, 'total' => $total]);
     }
 
     public function start(Request $request)
@@ -111,6 +117,14 @@ class ExamController extends Controller
         $attempt?->update(['finished_at' => now()->min($attempt->deadline())]);
 
         return redirect()->route('exam');
+    }
+
+    public function avatar(Request $request)
+    {
+        $data = $request->validate(['avatar' => ['required', 'string', \Illuminate\Validation\Rule::in(array_keys(User::AVATARS))]]);
+        $request->user()->update($data);
+
+        return response()->json(['avatar' => $data['avatar'], 'url' => $request->user()->avatarUrl()]);
     }
 
     public function violation(Request $request)

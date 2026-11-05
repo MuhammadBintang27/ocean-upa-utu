@@ -235,6 +235,7 @@ body.public { min-height: 100vh; display: flex; flex-direction: column; }
 .public .card { padding: 28px; }
 .hello { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; flex-shrink: 0; }
+.avatar-img { background: none; object-fit: cover; box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(36, 27, 94, .18); }
 .rules { list-style: none; padding: 0; margin: 14px 0 22px; }
 .rules li { padding: 10px 0 10px 34px; position: relative; border-bottom: 1px dashed var(--line); }
 .rules li:last-child { border-bottom: 0; }

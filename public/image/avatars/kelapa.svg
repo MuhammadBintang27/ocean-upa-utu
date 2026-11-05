@@ -1,0 +1,21 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="kelapa">
+  <clipPath id="clip-kelapa"><circle cx="60" cy="60" r="60"/></clipPath>
+  <g clip-path="url(#clip-kelapa)"><rect width="120" height="120" fill="#ffe7d3"/>
+  <path d="M-4 30 q30 -18 52 -6 q-26 2 -52 18z" fill="#f8cfa8"/>
+  <path d="M124 26 q-30 -14 -50 0 q24 0 50 14z" fill="#f8cfa8"/>
+  <path d="M0 104 q30 -8 60 0 t60 0 V120 H0z" fill="#f9d6b6"/>
+  <g transform="rotate(14 72 30)"><rect x="68" y="8" width="7" height="34" rx="3.5" fill="#fff"/>
+    <g clip-path="url(#strawClip)" fill="#d42027"><rect x="66" y="10" width="11" height="5"/><rect x="66" y="21" width="11" height="5"/><rect x="66" y="32" width="11" height="5"/></g>
+    <clipPath id="strawClip"><rect x="68" y="8" width="7" height="34" rx="3.5"/></clipPath></g>
+  <ellipse cx="60" cy="70" rx="34" ry="35" fill="#8cc63f"/>
+  <path d="M26 74 c2 18 16 31 34 31 c18 0 32 -13 34 -31 c-7 12 -19 20 -34 20 c-15 0 -27 -8 -34 -20z" fill="#76ad30"/>
+  <ellipse cx="60" cy="40" rx="21" ry="7.5" fill="#e9f5cf"/>
+  <ellipse cx="60" cy="40.5" rx="16" ry="5" fill="#fffbea"/>
+  <ellipse cx="43" cy="54" rx="9" ry="4.5" fill="#fff" opacity=".38" transform="rotate(-25 43 54)"/>
+  
+  <ellipse cx="41" cy="79" rx="5.5" ry="3.2" fill="#ff6f8e" opacity=".42"/>
+  <ellipse cx="79" cy="79" rx="5.5" ry="3.2" fill="#ff6f8e" opacity=".42"/>
+  <circle cx="48" cy="68" r="5.4" fill="#1d1640"/><circle cx="49.9" cy="66" r="1.94" fill="#fff"/>
+  <circle cx="72" cy="68" r="5.4" fill="#1d1640"/><circle cx="73.9" cy="66" r="1.94" fill="#fff"/>
+  <path d="M54.0 78 q6.0 6.6 12 0" stroke="#1d1640" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  </g></svg>

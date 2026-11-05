@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Section;
 use App\Models\Setting;
+use App\Models\User;
 use App\Support\Scoring;
 use Illuminate\Http\Request;
 
@@ -82,6 +83,63 @@ class DashboardController extends Controller
         }
 
         return back()->with('status', 'Pengaturan disimpan.');
+    }
+
+    public function lobby()
+    {
+        return view('admin.lobby', ['setting' => Setting::current()]);
+    }
+
+    public function lobbyData()
+    {
+        $setting = Setting::current();
+        $card = fn (User $u, array $status = null) => [
+            'id' => $u->id, 'name' => $u->name, 'school' => $u->school, 'avatar' => $u->avatarUrl(), 'status' => $status,
+        ];
+
+        // Before the start: who is in the waiting room. After: everyone's progress, straight from the DB.
+        if (! $setting->is_open) {
+            $people = User::inLobby()->map(fn (User $u) => $card($u));
+        } else {
+            $sections = Section::orderBy('sort')->get();
+            $people = User::where('is_admin', false)->orderBy('name')->with('attempts')->get()
+                ->map(fn (User $u) => $card($u, $this->progress($u, $sections, $setting->max_violations)));
+        }
+
+        return response()->json([
+            'open' => $setting->is_open,
+            'total' => User::where('is_admin', false)->count(),
+            'present' => $people->values(),
+        ]);
+    }
+
+    /** [label, kind] for the projector board. Read-only: expired attempts count as finished without writing. */
+    private function progress(User $user, $sections, int $maxViolations): array
+    {
+        if ($maxViolations > 0 && $user->violations >= $maxViolations) {
+            return ['Terkunci', 'locked'];
+        }
+        $attempts = $user->attempts->keyBy('section_id');
+        foreach ($sections as $i => $section) {
+            $attempt = $attempts->get($section->id);
+            if (! $attempt) {
+                return $i === 0 ? ['Belum masuk', 'absent'] : ['Menuju '.$section->name, 'break'];
+            }
+            $attempt->setRelation('section', $section);
+            if (! $attempt->finished_at && now()->lt($attempt->deadline()->addSeconds(\App\Models\Attempt::GRACE_SECONDS))) {
+                return [$section->name, 'work'];
+            }
+        }
+
+        return ['Selesai', 'done'];
+    }
+
+    /** Lobby start button: only ever opens, so a double click can't close the exam again. */
+    public function open()
+    {
+        Setting::current()->update(['is_open' => true]);
+
+        return response()->json(['open' => true]);
     }
 
     public function toggleOpen()

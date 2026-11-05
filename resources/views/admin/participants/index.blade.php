@@ -62,7 +62,7 @@
             <tr>
                 <td><strong>{{ $p->username }}</strong></td>
                 <td>@if($p->plain_password)<span class="pw" onclick="this.classList.toggle('show')">{{ $p->plain_password }}</span>@else<span class="muted">-</span>@endif</td>
-                <td>{{ $p->name }}</td>
+                <td>@if($p->avatarUrl())<img src="{{ $p->avatarUrl() }}" alt="" width="24" height="24" style="vertical-align:-7px;margin-right:8px;border-radius:50%">@endif{{ $p->name }}</td>
                 <td>{{ $p->school }}</td>
                 <td>@if($p->device_token)<span class="badge badge-yellow">terkunci</span>@else<span class="badge">bebas</span>@endif</td>
                 <td class="actions">

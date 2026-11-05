@@ -11,6 +11,18 @@
     .pulse::before, .pulse::after { content: ''; position: absolute; inset: 13px; border-radius: 50%; background: #fff; }
     .pulse::after { inset: 0; background: rgba(255,255,255,.35); animation: pulse 1.6s ease-out infinite; }
     @keyframes pulse { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
+    .picker { margin: 14px 0; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius); }
+    .picker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .picker-head b { color: var(--navy); font-size: 16px; }
+    .picker-head span { color: var(--muted); font-size: 13px; }
+    .picker-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+    @media (max-width: 560px) { .picker-grid { grid-template-columns: repeat(4, 1fr); } }
+    .picker-grid button { padding: 0; border: 0; background: none; cursor: pointer; text-align: center; font: inherit; font-size: 12px; color: var(--muted); }
+    .picker-grid img { display: block; width: 100%; max-width: 72px; aspect-ratio: 1; margin: 0 auto 6px; border-radius: 50%; box-shadow: 0 0 0 3px #fff, 0 0 0 4px var(--line); transition: transform .15s, box-shadow .15s; }
+    .picker-grid button:hover img { transform: translateY(-2px); }
+    .picker-grid button[aria-pressed="true"] { color: var(--navy); font-weight: 700; }
+    .picker-grid button[aria-pressed="true"] img { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--blue); }
+    .picker-grid button:focus-visible img { outline: 2px solid var(--blue); outline-offset: 6px; }
     .game { margin: 14px 0; }
     .i { width: 18px; height: 18px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
     .game .btn, .chip, .pill, .game-head b, .game .msg { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -54,6 +66,17 @@
         <div>
             <h2>Menunggu panitia memulai ujian</h2>
             <p>Halaman ini otomatis masuk ke soal begitu ujian dimulai. Jangan tutup halaman ini.</p>
+            <p id="presence" style="font-weight:600;color:#fff"></p>
+        </div>
+    </div>
+    <div class="picker">
+        <div class="picker-head"><b>Pilih karaktermu</b><span id="pickerNote">{{ auth()->user()->avatar ? 'Bisa diganti sebelum ujian dimulai.' : 'Karakter ini tampil di samping namamu.' }}</span></div>
+        <div class="picker-grid" role="group" aria-label="Pilih karakter">
+            @foreach(\App\Models\User::AVATARS as $key => $label)
+                <button type="button" data-avatar="{{ $key }}" aria-pressed="{{ auth()->user()->avatar === $key ? 'true' : 'false' }}">
+                    <img src="{{ asset("image/avatars/$key.svg") }}" alt="" width="72" height="72">{{ $label }}
+                </button>
+            @endforeach
         </div>
     </div>
     <div class="game">
@@ -88,6 +111,26 @@
 
 @push('scripts')
 <script>
+    document.querySelectorAll('[data-avatar]').forEach(btn => btn.addEventListener('click', async () => {
+        const note = document.getElementById('pickerNote');
+        try {
+            const res = await fetch(@json(route('exam.avatar')), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
+                body: JSON.stringify({ avatar: btn.dataset.avatar }),
+            });
+            if (!res.ok) throw new Error(res.status);
+            const { url } = await res.json();
+            document.querySelectorAll('[data-avatar]').forEach(b => b.setAttribute('aria-pressed', b === btn));
+            const img = document.createElement('img');
+            img.className = 'avatar avatar-img'; img.id = 'helloAvatar'; img.src = url; img.alt = '';
+            document.getElementById('helloAvatar').replaceWith(img);
+            note.textContent = 'Tersimpan. Bisa diganti sebelum ujian dimulai.';
+        } catch (e) {
+            note.textContent = 'Gagal menyimpan, coba lagi.';
+        }
+    }));
+
     // Waiting-room word scramble; client only, no server requests. Hidden until the participant opts in.
     (() => {
         const WORDS = [
@@ -195,12 +238,16 @@
         });
     })();
 
-    setInterval(async () => {
+    const poll = async () => {
         try {
             const res = await fetch(@json(route('exam.status')), { headers: { Accept: 'application/json' } });
             if (res.redirected || res.status === 401) return location.reload(); // session ended
-            if ((await res.json()).open) { loading.show('Ujian dimulai! Menyiapkan soal…'); location.reload(); }
+            const d = await res.json();
+            if (d.open) { loading.show('Ujian dimulai! Menyiapkan soal…'); location.reload(); }
+            document.getElementById('presence').textContent = `${d.present} dari ${d.total} peserta sudah hadir`;
         } catch (e) {}
-    }, 5000); // 200 participants ≈ 40 req/s, sized for shared-hosting PHP workers
+    };
+    poll(); // also marks this participant as present right away
+    setInterval(poll, 5000); // 200 participants ≈ 40 req/s, sized for shared-hosting PHP workers
 </script>
 @endpush
