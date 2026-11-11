@@ -1,0 +1,37 @@
+name: Load test (peserta dari banyak IP)
+
+# Manual only. Each matrix job is a separate GitHub machine with its own public IP.
+# Prepare the server first (migrate:fresh + loadtest users), and run tests/load/admin.py on a laptop.
+on:
+  workflow_dispatch:
+    inputs:
+      start_at:
+        description: "Unix time semua mesin mulai login (diberikan saat persiapan)"
+        required: true
+      total:
+        description: "Jumlah peserta tes"
+        default: "200"
+
+jobs:
+  participants:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Run participants
+        working-directory: tests/load
+        run: python participants.py --shard ${{ matrix.shard }} --of 5 --total ${{ inputs.total }} --start-at ${{ inputs.start_at }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: saved-shard-${{ matrix.shard }}
+          path: tests/load/saved-shard${{ matrix.shard }}.json
+          if-no-files-found: ignore
