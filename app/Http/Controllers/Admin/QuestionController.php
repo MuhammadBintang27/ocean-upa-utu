@@ -14,7 +14,7 @@ class QuestionController extends Controller
     public function index()
     {
         return view('admin.questions.index', [
-            'sections' => Section::orderBy('sort')->with(['questions.passage', 'passages'])->get(),
+            'sections' => Section::orderBy('is_practice')->orderBy('sort')->with(['questions.passage', 'passages'])->get(),
         ]);
     }
 
@@ -58,7 +58,7 @@ class QuestionController extends Controller
     {
         return view('admin.questions.form', [
             'question' => $question,
-            'sections' => Section::orderBy('sort')->get(),
+            'sections' => Section::orderBy('is_practice')->orderBy('sort')->get(),
             'passages' => Passage::orderBy('section_id')->orderBy('sort')->get(),
         ]);
     }

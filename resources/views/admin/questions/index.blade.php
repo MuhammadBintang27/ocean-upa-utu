@@ -25,7 +25,7 @@
                         <td><strong>{{ $p->title }}</strong><div class="muted">{{ \Illuminate\Support\Str::limit($p->body, 160) }}</div></td>
                         <td class="actions">
                             <a class="btn btn-sm btn-gray" href="{{ route('admin.passages.edit', $p) }}">Edit</a>
-                            <form class="inline" method="post" action="{{ route('admin.passages.destroy', $p) }}" onsubmit="return confirm('Hapus passage ini?')">@csrf @method('DELETE')<button class="btn btn-sm btn-red">Hapus</button></form>
+                            <form class="inline" method="post" action="{{ route('admin.passages.destroy', $p) }}" data-confirm="Passage ini akan dihapus." data-confirm-title="Hapus passage?" data-confirm-ok="Hapus">@csrf @method('DELETE')<button class="btn btn-sm btn-red">Hapus</button></form>
                         </td>
                     </tr>
                 @endforeach
@@ -52,7 +52,7 @@
                     <td><span class="badge badge-green">{{ strtoupper($q->answer) }}</span></td>
                     <td class="actions">
                         <a class="btn btn-sm btn-gray" href="{{ route('admin.questions.edit', $q) }}">Edit</a>
-                        <form class="inline" method="post" action="{{ route('admin.questions.destroy', $q) }}" onsubmit="return confirm('Hapus soal ini?')">@csrf @method('DELETE')<button class="btn btn-sm btn-red">Hapus</button></form>
+                        <form class="inline" method="post" action="{{ route('admin.questions.destroy', $q) }}" data-confirm="Soal ini akan dihapus beserta jawaban peserta untuk soal ini." data-confirm-title="Hapus soal?" data-confirm-ok="Hapus">@csrf @method('DELETE')<button class="btn btn-sm btn-red">Hapus</button></form>
                     </td>
                 </tr>
             @empty

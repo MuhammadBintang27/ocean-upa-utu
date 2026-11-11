@@ -30,7 +30,7 @@ class ExamTest extends TestCase
 
     public function test_seeder_loads_both_sections_with_30_questions(): void
     {
-        $this->assertSame([30, 30], Section::orderBy('sort')->withCount('questions')->pluck('questions_count')->all());
+        $this->assertSame([30, 30], Section::exam()->withCount('questions')->pluck('questions_count')->all());
     }
 
     public function test_account_is_locked_to_first_device(): void
@@ -50,7 +50,7 @@ class ExamTest extends TestCase
     public function test_waiting_room_then_runs_sections_in_order(): void
     {
         $user = $this->loginParticipant();
-        [$structure, $reading] = Section::orderBy('sort')->get();
+        [$structure, $reading] = Section::exam()->get();
 
         $this->get('/exam')->assertSee('Ruang Tunggu');
         $this->getJson('/exam/status')->assertJson(['open' => false]);
@@ -101,7 +101,7 @@ class ExamTest extends TestCase
         $this->loginParticipant();
         Setting::current()->update(['is_open' => true]);
         $this->get('/exam');
-        $q = Section::orderBy('sort')->first()->questions->first();
+        $q = Section::exam()->first()->questions->first();
 
         $this->travel(26)->minutes(); // Structure is 25 minutes
         $this->postJson('/exam/answer', ['question_id' => $q->id, 'choice' => 'c'])->assertStatus(409);
@@ -126,7 +126,7 @@ class ExamTest extends TestCase
         $this->loginParticipant();
         Setting::current()->update(['is_open' => true]);
         $this->get('/exam');
-        $q = Section::orderBy('sort')->first()->questions->first();
+        $q = Section::exam()->first()->questions->first();
 
         $this->travel(25 * 60 + 5)->seconds(); // 5s past the 25-minute deadline
         $this->postJson('/exam/answer', ['question_id' => $q->id, 'choice' => 'c'])->assertOk();
@@ -156,7 +156,7 @@ class ExamTest extends TestCase
         Setting::current()->update(['is_open' => true, 'shuffle_questions' => true]);
         $this->get('/exam');
         Attempt::query()->update(['finished_at' => now()]); // move on to the Reading section
-        $reading = Section::orderBy('sort')->skip(1)->first();
+        $reading = Section::exam()->skip(1)->first();
         $this->post('/exam/start');
 
         $order = fn () => $this->get('/exam')->viewData('section')->questions;
@@ -171,9 +171,9 @@ class ExamTest extends TestCase
 
     public function test_ranking_uses_points_then_fastest_time(): void
     {
-        $structure = Section::orderBy('sort')->first();
+        $structure = Section::exam()->first();
         $structure->update(['wrong_points' => -0.25]);
-        $reading = Section::orderBy('sort')->skip(1)->first();
+        $reading = Section::exam()->skip(1)->first();
         $q = $structure->questions;
 
         $make = function (string $name, array $answers, int $minutes) use ($structure, $reading) {
@@ -278,7 +278,7 @@ class ExamTest extends TestCase
 
         // after the start the board shows progress from the DB, not waiting-room presence
         $this->getJson('/admin/lobby/data')->assertJsonPath('present.0.status', ['Belum masuk', 'absent']);
-        Attempt::create(['user_id' => $user->id, 'section_id' => Section::orderBy('sort')->value('id'), 'started_at' => now()]);
+        Attempt::create(['user_id' => $user->id, 'section_id' => Section::exam()->value('id'), 'started_at' => now()]);
         $this->getJson('/admin/lobby/data')->assertJsonPath('present.0.status', ['Structure', 'work']);
         $user->forceFill(['violations' => 99])->save();
         $this->getJson('/admin/lobby/data')->assertJsonPath('present.0.status', ['Terkunci', 'locked']);
@@ -305,5 +305,81 @@ class ExamTest extends TestCase
 
         $this->get('/_busy')->assertStatus(503)->assertSee('Server sedang ramai')->assertHeader('Retry-After');
         $this->getJson('/_busy')->assertStatus(503)->assertJsonPath('message', 'Server sedang ramai, coba lagi.');
+    }
+
+    public function test_practice_round_is_unscored_and_returns_to_waiting_room(): void
+    {
+        $this->assertSame([3, 3], Section::mode(true)->withCount('questions')->pluck('questions_count')->all());
+        $this->assertSame(2, Section::exam()->count()); // practice sections never reach scoring
+
+        $user = $this->loginParticipant();
+        Setting::current()->update(['practice_open' => true]);
+        $this->getJson('/exam/status')->assertJsonPath('practice', true)->assertJsonPath('open', false);
+
+        // practice Structure: full short time, violations shown but not counted
+        $page = $this->get('/exam')->assertOk()->assertSee('SIMULASI')->assertSee('Simulasi Structure')
+            ->assertSee('location.replace', false); // watches for the real exam to start
+        $this->assertEqualsWithDelta(2 * 60, $page->viewData('remaining'), 2);
+        [$simStructure, $simReading] = Section::mode(true)->get();
+        $this->postJson('/exam/answer', ['question_id' => $simStructure->questions->first()->id, 'choice' => 'b'])->assertOk();
+        $this->postJson('/exam/violation', ['reason' => 'test'])->assertJsonPath('practice', true)->assertJsonPath('locked', false);
+        $this->assertSame(0, $user->fresh()->violations);
+
+        $this->post('/exam/finish');
+        $this->get('/exam')->assertSee('Mulai '.$simReading->name)->assertSee('location.replace', false);
+        $this->post('/exam/start')->assertRedirect(route('exam'));
+        $this->get('/exam')->assertSee('Simulasi Reading Comprehension');
+        $this->post('/exam/finish');
+
+        // done: back in the waiting room, which must not bounce back into practice
+        $this->get('/exam')->assertSee('Simulasi selesai')->assertSee('(!true || d.round !== 0)', false);
+
+        // admin starts the real exam: practice ends, real Structure starts, practice answers never count
+        Setting::current()->update(['is_open' => true]);
+        $this->assertFalse(Setting::current()->practice_open);
+        $this->get('/exam')->assertOk()->assertSee(Section::exam()->first()->name)->assertDontSee('SIMULASI')->assertDontSee('location.replace', false);
+        $row = Scoring::ranking()->first();
+        $this->assertSame(Section::exam()->pluck('id')->all(), array_keys($row['sections']));
+        $this->assertEquals(0, $row['total']);
+    }
+
+    public function test_practice_questions_and_passage_never_repeat_the_real_exam(): void
+    {
+        $norm = fn ($t) => strtolower(trim(preg_replace('/\s+/', ' ', $t)));
+        $real = Question::whereIn('section_id', Section::exam()->pluck('id'))->pluck('text')->map($norm);
+        $practice = Question::whereIn('section_id', Section::mode(true)->pluck('id'))->pluck('text')->map($norm);
+
+        $this->assertCount(6, $practice);
+        $this->assertSame([], $practice->intersect($real)->values()->all());
+        $realTitles = \App\Models\Passage::whereIn('section_id', Section::exam()->pluck('id'))->pluck('title')->map($norm);
+        $practiceTitles = \App\Models\Passage::whereIn('section_id', Section::mode(true)->pluck('id'))->pluck('title')->map($norm);
+        $this->assertSame([], $practiceTitles->intersect($realTitles)->values()->all());
+    }
+
+    public function test_admin_can_restart_the_practice_round_for_everyone(): void
+    {
+        $user = $this->loginParticipant();
+        $this->post('/logout');
+        $this->post('/login', ['username' => 'admin', 'password' => 'Ocean@Utu2026']);
+        $this->postJson('/admin/practice')->assertOk();
+        $this->assertSame(1, Setting::current()->practice_round);
+
+        // participant finishes the whole practice round
+        [$simStructure, $simReading] = Section::mode(true)->get();
+        foreach ([$simStructure, $simReading] as $s) {
+            Attempt::create(['user_id' => $user->id, 'section_id' => $s->id, 'started_at' => now()->subMinutes(5), 'finished_at' => now()]);
+        }
+        $this->assertSame(2, $user->attempts()->count());
+
+        $this->postJson('/admin/practice/restart')->assertOk();
+        $this->assertSame(0, $user->attempts()->count()); // practice progress wiped
+        $this->assertSame(2, Setting::current()->practice_round); // open pages see a new round and rejoin
+        $this->assertTrue(Setting::current()->practiceRunning());
+        $this->get('/admin/lobby')->assertOk()->assertSee('Ulangi simulasi');
+
+        // never after the real exam has started
+        Setting::current()->update(['is_open' => true]);
+        $this->postJson('/admin/practice/restart')->assertStatus(409);
+        $this->postJson('/admin/practice')->assertStatus(409);
     }
 }

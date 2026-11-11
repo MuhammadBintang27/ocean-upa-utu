@@ -12,6 +12,7 @@
     .exam-bar img.me { height: 40px; width: 40px; border-radius: 50%; filter: none; box-shadow: 0 0 0 2px rgba(255,255,255,.85); }
     .exam-bar .title { font-weight: 700; font-size: 16px; line-height: 1.2; }
     .exam-bar .sub { font-size: 12.5px; color: #cdd6ff; }
+    .practice-tag { display: inline-block; margin-right: 6px; padding: 2px 8px; border-radius: 6px; background: #fbbf24; color: #3b2a00; font-size: 11.5px; font-weight: 800; letter-spacing: .4px; vertical-align: 2px; }
     .exam-bar .sub b { color: #fff; }
     .timer { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; background: rgba(255,255,255,.14); padding: 4px 14px; border-radius: 10px; letter-spacing: .03em; }
     .timer.low { background: var(--red); animation: blink 1s steps(2) infinite; }
@@ -60,7 +61,7 @@
     <div class="inner">
         <img src="{{ asset('image/ocean-logo.png') }}" alt="OCEAN 2026">
         <div>
-            <div class="title">{{ $section->name }}</div>
+            <div class="title">@if($section->is_practice)<span class="practice-tag">SIMULASI · tidak dinilai</span> @endif{{ $section->name }}</div>
             <div class="sub">
                 Terjawab <b id="answered">{{ $choices->count() }}</b>/{{ $section->questions->count() }}
                 · Pelanggaran <b id="violations">{{ $violations }}</b>@if($setting->max_violations > 0)/{{ $setting->max_violations }}@endif
@@ -268,6 +269,7 @@
             const data = await (await post(urls.violation, { reason })).json();
             document.getElementById('violations').textContent = data.violations;
             if (data.locked) { leaving = true; return location.reload(); }
+            if (data.practice) return showLock('Contoh pelanggaran', `Kamu meninggalkan halaman ujian (${reason}). Saat simulasi ini tidak dihitung, tapi di ujian sebenarnya akan tercatat sebagai pelanggaran.`);
             const left = data.max > 0 ? ` Sisa kesempatan: ${data.max - data.violations}.` : '';
             showLock('Pelanggaran tercatat!', `Kamu meninggalkan halaman ujian (${reason}).${left}`);
         } catch (e) {}
@@ -295,4 +297,7 @@
     window.addEventListener('beforeunload', () => { leaving = true; });
 })();
 </script>
+@if($section->is_practice)
+    @include('partials.practice-watch')
+@endif
 @endpush

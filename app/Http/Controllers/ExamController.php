@@ -19,19 +19,24 @@ class ExamController extends Controller
 {
     public function index(Request $request)
     {
-        [$section, $attempt] = $this->current($request->user());
+        $setting = Setting::current();
+        $practice = $setting->practiceRunning();
+        [$section, $attempt] = $this->current($request->user(), $practice);
         // consumed on every visit (after the first DB call, so a refused connection keeps it for the retry)
         $wantsStart = $request->session()->pull('wants_start');
 
         if (! $section) {
-            return view('exam.done');
+            // practice round done: back to the waiting room until the real exam starts
+            return $practice
+                ? view('exam.waiting', ['section' => Section::exam()->first(), 'setting' => $setting, 'practiceDone' => true])
+                : view('exam.done');
         }
 
         if (! $attempt) {
-            $setting = Setting::current();
+            $firstId = Section::mode($practice)->value('id');
 
-            if ($section->id !== Section::orderBy('sort')->value('id')) {
-                if (! $wantsStart || ! $setting->is_open) {
+            if ($section->id !== $firstId) {
+                if (! $wantsStart || ! ($setting->is_open || $practice)) {
                     return view('exam.intro', ['section' => $section, 'setting' => $setting]);
                 }
                 $attempt = Attempt::firstOrCreate(
@@ -39,9 +44,16 @@ class ExamController extends Controller
                     ['started_at' => now()],
                 );
                 $attempt->setRelation('section', $section);
+            } elseif ($practice) {
+                // practice: everyone gets the full (short) time from the moment their questions arrive
+                $attempt = Attempt::firstOrCreate(
+                    ['user_id' => $request->user()->id, 'section_id' => $section->id],
+                    ['started_at' => now()],
+                );
+                $attempt->setRelation('section', $section);
             } else {
                 if (! $setting->is_open) {
-                    return view('exam.waiting', ['section' => $section, 'setting' => $setting]);
+                    return view('exam.waiting', ['section' => $section, 'setting' => $setting, 'practiceDone' => false]);
                 }
                 // First section starts together for everyone; latecomers get only the time left,
                 // unless the committee reset this participant, who then gets the full duration.
@@ -67,9 +79,15 @@ class ExamController extends Controller
             'attempt' => $attempt,
             'choices' => $choices,
             'remaining' => max(0, (int) now()->diffInSeconds($attempt->deadline(), false)),
-            'setting' => Setting::current(),
+            'setting' => $setting,
             'violations' => $request->user()->violations,
         ]);
+    }
+
+    /** Which round the participant is in right now (the real exam always wins). */
+    private function practiceMode(): bool
+    {
+        return Setting::current()->practiceRunning();
     }
 
     /**
@@ -88,7 +106,9 @@ class ExamController extends Controller
             User::inLobby()->count(), User::where('is_admin', false)->count(),
         ]);
 
-        return response()->json(['open' => Setting::isOpen(), 'present' => $present, 'total' => $total]);
+        [$open, $practice, $round] = Setting::state();
+
+        return response()->json(['open' => $open, 'practice' => $practice, 'round' => $round, 'present' => $present, 'total' => $total]);
     }
 
     /**
@@ -110,7 +130,7 @@ class ExamController extends Controller
             'choice' => ['required', Rule::in(Question::CHOICES)],
         ]);
 
-        [, $attempt] = $this->current($request->user());
+        [, $attempt] = $this->current($request->user(), $this->practiceMode());
         $question = Question::find($data['question_id']);
 
         if (! $attempt || ! $question || $question->section_id !== $attempt->section_id) {
@@ -124,7 +144,7 @@ class ExamController extends Controller
 
     public function finish(Request $request)
     {
-        [, $attempt] = $this->current($request->user());
+        [, $attempt] = $this->current($request->user(), $this->practiceMode());
         // During the grace period now() is past the deadline; time used must not exceed the duration.
         $attempt?->update(['finished_at' => now()->min($attempt->deadline())]);
 
@@ -142,12 +162,14 @@ class ExamController extends Controller
     public function violation(Request $request)
     {
         $user = $request->user();
-        [$section, $attempt] = $this->current($user);
+        $practice = $this->practiceMode();
+        [$section, $attempt] = $this->current($user, $practice);
         $max = Setting::current()->max_violations;
 
-        // Only counts while a section is running (not in the waiting room or after finishing).
-        if (! $attempt) {
-            return response()->json(['violations' => $user->violations, 'max' => $max, 'locked' => ! $section]);
+        // Only counts while a real section is running: not in the waiting room, after finishing, or in practice
+        // (the practice round shows the warning so students learn the rules, but can't lock anyone out).
+        if (! $attempt || $practice) {
+            return response()->json(['violations' => $user->violations, 'max' => $max, 'locked' => ! $section && ! $practice, 'practice' => $practice]);
         }
 
         $user->increment('violations');
@@ -183,7 +205,7 @@ class ExamController extends Controller
     /** Ends the running section and every section not started yet. */
     private function lockOut(User $user): void
     {
-        foreach (Section::orderBy('sort')->get() as $section) {
+        foreach (Section::exam()->get() as $section) {
             $attempt = Attempt::firstOrCreate(
                 ['user_id' => $user->id, 'section_id' => $section->id],
                 ['started_at' => now()],
@@ -198,11 +220,11 @@ class ExamController extends Controller
      * The first section the user hasn't finished, with its attempt if started.
      * Returns [null, null] when everything is done.
      */
-    private function current(User $user): array
+    private function current(User $user, bool $practice = false): array
     {
         $attempts = $user->attempts()->with('section')->get()->keyBy('section_id');
 
-        foreach (Section::orderBy('sort')->get() as $section) {
+        foreach (Section::mode($practice)->get() as $section) {
             $attempt = $attempts->get($section->id);
             if (! $attempt) {
                 return [$section, null];

@@ -39,6 +39,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/lobby', [DashboardController::class, 'lobby'])->name('lobby');
         Route::get('/lobby/data', [DashboardController::class, 'lobbyData'])->name('lobby.data');
         Route::post('/open', [DashboardController::class, 'open'])->name('open');
+        Route::post('/practice', [DashboardController::class, 'practice'])->name('practice');
+        Route::post('/practice/restart', [DashboardController::class, 'restartPractice'])->name('practice.restart');
 
         Route::post('/participants/import', [ParticipantController::class, 'import'])->name('participants.import');
         Route::get('/participants/template', [ParticipantController::class, 'template'])->name('participants.template');

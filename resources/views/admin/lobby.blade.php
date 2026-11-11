@@ -43,6 +43,9 @@
         .go { background: #22c55e; color: #fff; border: 0; border-radius: 12px; padding: 16px 30px; font: inherit; font-size: 19px; font-weight: 800; letter-spacing: .5px; cursor: pointer; box-shadow: 0 6px 0 #15803d, 0 12px 24px rgba(0,0,0,.3); }
         .go:active { transform: translateY(3px); box-shadow: 0 3px 0 #15803d; }
         .go[hidden] { display: none; }
+        .go.sim { background: #f59e0b; box-shadow: 0 6px 0 #b45309, 0 12px 24px rgba(0,0,0,.3); }
+        .go.sim:active { box-shadow: 0 3px 0 #b45309; }
+        .dot.sim { background: #f59e0b; }
         #cd { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(16,11,48,.92); }
         #cd.show { display: flex; }
         #cd span { font-size: min(42vw, 420px); font-weight: 900; line-height: 1; text-shadow: 0 20px 60px rgba(0,0,0,.45); animation: tick 1s ease-out both; font-variant-numeric: tabular-nums; }
@@ -69,22 +72,30 @@
     <span class="spacer"></span>
     <a class="ghost" href="{{ route('admin.dashboard') }}">Dashboard</a>
     <button type="button" class="ghost" id="fs">Layar penuh</button>
-    <button type="button" class="go" id="go" @if($setting->is_open) hidden @endif>MULAI UJIAN</button>
+    <button type="button" class="go sim" id="sim" hidden>MULAI SIMULASI</button>
+    <button type="button" class="ghost" id="simAgain" hidden>Ulangi simulasi</button>
+    <button type="button" class="go" id="go" hidden>MULAI UJIAN</button>
 </div>
 
 <div id="cd" aria-live="assertive"></div>
+@include('partials.confirm-dialog')
 
 <script>
 (() => {
     const $ = id => document.getElementById(id);
     const shown = new Map(); // id => element, so only newcomers animate in
-    let open = @json($setting->is_open);
+    let mode = null, inPractice = 0; // mode: 'wait' | 'practice' | 'exam'
 
-    function setOpen(v) {
-        open = v;
-        $('go').hidden = v;
-        $('dot').classList.toggle('live', v);
-        $('state').textContent = v ? 'Ujian sedang berlangsung' : 'Menunggu panitia memulai ujian';
+    function setMode(m) {
+        mode = m;
+        $('sim').hidden = m !== 'wait';
+        $('simAgain').hidden = m !== 'practice';
+        $('go').hidden = m === 'exam';
+        $('dot').classList.toggle('live', m === 'exam');
+        $('dot').classList.toggle('sim', m === 'practice');
+        $('state').textContent = { wait: 'Menunggu panitia memulai', practice: 'Simulasi sedang berlangsung (tidak dinilai)', exam: 'Ujian sedang berlangsung' }[m];
+        $('title').textContent = { wait: 'Ruang Tunggu Peserta', practice: 'Progres Simulasi', exam: 'Progres Peserta' }[m];
+        $('countLabel').textContent = { wait: 'peserta hadir', practice: 'selesai simulasi', exam: 'peserta selesai' }[m];
     }
 
     function card(p) {
@@ -122,39 +133,53 @@
                 shown.set(p.id, el);
             });
             grid.querySelector('.empty').hidden = shown.size > 0;
-            // waiting: how many are here; running: how many have finished
-            const n = d.open ? d.present.filter(p => p.status?.[1] === 'done' || p.status?.[1] === 'locked').length : d.present.length;
+            const m = d.open ? 'exam' : d.practice ? 'practice' : 'wait';
+            if (m !== mode) setMode(m);
+            // waiting: how many are here; practice/exam: how many have finished that round
+            const n = m === 'wait' ? d.present.length : d.present.filter(p => p.status?.[1] === 'done' || p.status?.[1] === 'locked').length;
+            inPractice = m === 'practice' ? d.present.filter(p => ['work', 'break'].includes(p.status?.[1])).length : 0;
             $('present').textContent = n;
             $('total').textContent = d.total;
-            $('countLabel').textContent = d.open ? 'peserta selesai' : 'peserta hadir';
-            $('title').textContent = d.open ? 'Progres Peserta' : 'Ruang Tunggu Peserta';
             $('bar').style.width = d.total ? Math.min(100, n / d.total * 100) + '%' : '0';
-            if (d.open !== open) setOpen(d.open);
         } catch (e) {}
     }
 
     const sleep = ms => new Promise(r => setTimeout(r, ms));
-    $('go').onclick = async () => {
-        if (!confirm('Mulai ujian sekarang? Timer semua peserta langsung berjalan.')) return;
-        $('go').disabled = true;
+    async function countdown(btn, url, next) {
+        btn.disabled = true;
         const cd = $('cd');
         cd.classList.add('show');
         for (const n of ['3', '2', '1']) { cd.innerHTML = `<span>${n}</span>`; await sleep(1000); }
         try {
-            const res = await fetch(@json(route('admin.open')), {
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
             });
             if (!res.ok) throw new Error(res.status);
             cd.innerHTML = '<span class="mulai">MULAI!</span>';
-            setOpen(true);
+            setMode(next);
             await sleep(1400);
         } catch (e) {
             cd.innerHTML = '<span class="mulai" style="color:#fca5a5;font-size:min(8vw,80px)">Gagal memulai, coba lagi</span>';
             await sleep(2500);
         }
         cd.classList.remove('show');
-        $('go').disabled = false;
+        btn.disabled = false;
+    }
+    $('sim').onclick = async () => await ask({
+        title: 'Mulai simulasi?', tone: 'amber', ok: 'Mulai simulasi',
+        message: 'Peserta mengerjakan soal latihan singkat yang tidak dinilai. Setelah selesai, mereka kembali ke ruang tunggu.',
+    }) && countdown($('sim'), @json(route('admin.practice')), 'practice');
+    $('simAgain').onclick = async () => await ask({
+        title: 'Ulangi simulasi?', tone: 'amber', ok: 'Ulangi simulasi',
+        message: 'Progres simulasi semua peserta dihapus, lalu semua mulai lagi dari soal pertama.',
+    }) && countdown($('simAgain'), @json(route('admin.practice.restart')), 'practice');
+    $('go').onclick = () => {
+        const warn = inPractice ? `
+
+${inPractice} peserta masih mengerjakan simulasi. Simulasi mereka dihentikan dan mereka langsung masuk ujian.` : '';
+        return ask({ title: 'Mulai ujian sekarang?', tone: 'green', ok: 'Mulai ujian', message: 'Timer semua peserta langsung berjalan.' + warn })
+            .then(yes => yes && countdown($('go'), @json(route('admin.open')), 'exam'));
     };
 
     $('fs').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();

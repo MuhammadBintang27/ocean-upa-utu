@@ -12,7 +12,7 @@
     <span class="badge {{ $participant->violations ? 'badge-red' : '' }}">{{ $participant->violations }} pelanggaran</span>
     <span class="spacer"></span>
     <form class="inline" method="post" action="{{ route('admin.participants.reset-device', $participant) }}">@csrf<button class="btn btn-sm btn-gray">Reset perangkat</button></form>
-    <form class="inline" method="post" action="{{ route('admin.participants.reset-exam', $participant) }}" onsubmit="return confirm('Hapus SEMUA jawaban {{ $participant->username }} dan mulai ulang dari awal?')">@csrf<button class="btn btn-sm btn-red">Reset ujian</button></form>
+    <form class="inline" method="post" action="{{ route('admin.participants.reset-exam', $participant) }}" data-confirm="Semua jawaban {{ $participant->username }} dihapus dan ujiannya dimulai ulang dari awal dengan waktu penuh." data-confirm-title="Reset ujian peserta?" data-confirm-ok="Reset ujian">@csrf<button class="btn btn-sm btn-red">Reset ujian</button></form>
 </div>
 
 @if($participant->violationLogs->isNotEmpty())

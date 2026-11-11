@@ -42,7 +42,7 @@ class PassageController extends Controller
 
     private function form(Passage $passage)
     {
-        return view('admin.passages.form', ['passage' => $passage, 'sections' => Section::orderBy('sort')->get()]);
+        return view('admin.passages.form', ['passage' => $passage, 'sections' => Section::orderBy('is_practice')->orderBy('sort')->get()]);
     }
 
     private function validated(Request $request): array

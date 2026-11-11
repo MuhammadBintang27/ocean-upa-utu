@@ -69,7 +69,7 @@
                     <a class="btn btn-sm btn-gray" href="{{ route('admin.participants.show', $p) }}">Detail</a>
                     <a class="btn btn-sm btn-gray" href="{{ route('admin.participants.edit', $p) }}">Edit</a>
                     <form class="inline" method="post" action="{{ route('admin.participants.reset-device', $p) }}">@csrf<button class="btn btn-sm btn-gray">Reset perangkat</button></form>
-                    <form class="inline" method="post" action="{{ route('admin.participants.destroy', $p) }}" onsubmit="return confirm('Hapus peserta ini beserta semua jawabannya?')">@csrf @method('DELETE')<button class="btn btn-sm btn-red">Hapus</button></form>
+                    <form class="inline" method="post" action="{{ route('admin.participants.destroy', $p) }}" data-confirm="{{ $p->name }} ({{ $p->username }}) akan dihapus beserta semua jawabannya. Tindakan ini tidak bisa dibatalkan." data-confirm-title="Hapus peserta?" data-confirm-ok="Hapus peserta">@csrf @method('DELETE')<button class="btn btn-sm btn-red">Hapus</button></form>
                 </td>
             </tr>
         @empty

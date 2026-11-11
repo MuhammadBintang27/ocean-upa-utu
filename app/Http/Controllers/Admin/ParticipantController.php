@@ -119,7 +119,7 @@ class ParticipantController extends Controller
 
         return view('admin.participants.show', [
             'participant' => $participant,
-            'sections' => Section::orderBy('sort')->with('questions')->get(),
+            'sections' => Section::exam()->with('questions')->get(),
         ]);
     }
 

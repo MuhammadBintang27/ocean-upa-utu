@@ -64,8 +64,13 @@
     <div class="waiting">
         <div class="pulse"></div>
         <div>
-            <h2>Menunggu panitia memulai ujian</h2>
-            <p>Halaman ini otomatis masuk ke soal begitu ujian dimulai. Jangan tutup halaman ini.</p>
+            @if($practiceDone ?? false)
+                <h2>Simulasi selesai, menunggu ujian dimulai</h2>
+                <p>Simulasi tadi tidak dinilai. Halaman ini otomatis masuk ke soal begitu ujian dimulai. Jangan tutup halaman ini.</p>
+            @else
+                <h2>Menunggu panitia memulai ujian</h2>
+                <p>Halaman ini otomatis masuk ke soal begitu simulasi atau ujian dimulai. Jangan tutup halaman ini.</p>
+            @endif
             <p id="presence" style="font-weight:600;color:#fff"></p>
         </div>
     </div>
@@ -243,8 +248,9 @@
             const res = await fetch(@json(route('exam.status')), { headers: { Accept: 'application/json' } });
             if (res.redirected || res.status === 401) return location.reload(); // session ended
             const d = await res.json();
-            if (d.open) {
-                loading.show('Ujian dimulai! Menyiapkan soal…');
+            // a participant who already finished the practice round stays here until the real exam
+            if (d.open || (d.practice && (!@json($practiceDone ?? false) || d.round !== @json((int) $setting->practice_round)))) {
+                loading.show(d.open ? 'Ujian dimulai! Menyiapkan soal…' : 'Simulasi dimulai! Menyiapkan soal…');
                 // spread 200 page loads over a few seconds: the host allows only 50 DB connections at once
                 return setTimeout(() => location.reload(), Math.random() * 6000);
             }

@@ -26,10 +26,14 @@
         @if($setting->is_open && $setting->opened_at)<div style="font-size:13px;color:#cdd6ff">Dimulai pukul {{ $setting->opened_at->format('H:i:s') }}</div>@endif
     </div>
     <span class="spacer"></span>
-    <form method="post" action="{{ route('admin.toggle-open') }}">
+    <form method="post" action="{{ route('admin.toggle-open') }}"
+        @if($setting->is_open)
+            data-confirm="Peserta yang sedang mengerjakan tidak bisa menyimpan jawaban lagi sampai ujian dibuka kembali." data-confirm-title="Tutup ujian?" data-confirm-ok="Tutup ujian" data-confirm-tone="red"
+        @else
+            data-confirm="Timer {{ $sections->first()?->name }} semua peserta langsung berjalan." data-confirm-title="Mulai ujian sekarang?" data-confirm-ok="Mulai ujian" data-confirm-tone="green"
+        @endif>
         @csrf
-        <button class="btn btn-lg {{ $setting->is_open ? 'btn-red' : 'btn-green' }}"
-            @unless($setting->is_open) onclick="return confirm('Mulai ujian sekarang? Timer {{ $sections->first()?->name }} semua peserta langsung berjalan.')" @endunless>
+        <button class="btn btn-lg {{ $setting->is_open ? 'btn-red' : 'btn-green' }}">
             {{ $setting->is_open ? 'Tutup ujian' : '▶ MULAI ujian (serentak)' }}</button>
     </form>
 </div>

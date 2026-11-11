@@ -18,10 +18,17 @@ class DatabaseSeeder extends Seeder
 
         Setting::current();
 
-        if (Section::exists()) {
-            return; // questions already seeded; don't overwrite admin edits
+        if (! Section::exam()->exists()) {
+            $this->examSections();
         }
+        // separate check so an existing install gets the practice round with a plain db:seed (no fresh)
+        if (! Section::mode(true)->exists()) {
+            $this->practiceSections();
+        }
+    }
 
+    private function examSections(): void
+    {
         $structure = Section::create([
             'name' => 'Structure',
             'sort' => 1,
@@ -41,6 +48,31 @@ class DatabaseSeeder extends Seeder
             $passage = $reading->passages()->create(['title' => $p['title'], 'body' => $p['body'], 'sort' => $i + 1]);
             $sort = $this->questions($reading, $passage->id, $p['questions'], $sort);
         }
+    }
+
+    /** Practice round (simulasi): short, unscored, run from the lobby before the real exam. */
+    private function practiceSections(): void
+    {
+        $practice = require __DIR__.'/data/practice.php';
+        [$structure, $reading] = Section::exam()->get();
+        $simStructure = Section::create([
+            'name' => 'Simulasi Structure',
+            'sort' => 1,
+            'is_practice' => true,
+            'duration_minutes' => 2,
+            'directions' => $structure->directions,
+        ]);
+        $this->questions($simStructure, null, $practice['structure']);
+
+        $simReading = Section::create([
+            'name' => 'Simulasi Reading Comprehension',
+            'sort' => 2,
+            'is_practice' => true,
+            'duration_minutes' => 2,
+            'directions' => $reading->directions,
+        ]);
+        $passage = $simReading->passages()->create(['title' => $practice['reading']['title'], 'body' => $practice['reading']['body'], 'sort' => 1]);
+        $this->questions($simReading, $passage->id, $practice['reading']['questions']);
     }
 
     private function questions(Section $section, ?int $passageId, array $rows, int $sort = 0): int

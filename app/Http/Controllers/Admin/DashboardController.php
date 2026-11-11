@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attempt;
 use App\Models\Section;
 use App\Models\Setting;
 use App\Models\User;
@@ -15,14 +16,14 @@ class DashboardController extends Controller
     {
         return view('admin.dashboard', [
             'rows' => Scoring::ranking(),
-            'sections' => Section::orderBy('sort')->get(),
+            'sections' => Section::exam()->get(),
             'setting' => Setting::current(),
         ]);
     }
 
     public function export()
     {
-        $sections = Section::orderBy('sort')->get();
+        $sections = Section::exam()->get();
         $rows = Scoring::ranking();
 
         return response()->streamDownload(function () use ($sections, $rows) {
@@ -52,7 +53,7 @@ class DashboardController extends Controller
     {
         return view('admin.settings', [
             'setting' => Setting::current(),
-            'sections' => Section::orderBy('sort')->get(),
+            'sections' => Section::orderBy('is_practice')->orderBy('sort')->get(),
         ]);
     }
 
@@ -97,24 +98,27 @@ class DashboardController extends Controller
             'id' => $u->id, 'name' => $u->name, 'school' => $u->school, 'avatar' => $u->avatarUrl(), 'status' => $status,
         ];
 
-        // Before the start: who is in the waiting room. After: everyone's progress, straight from the DB.
-        if (! $setting->is_open) {
+        // Before a start: who is in the waiting room. During the practice round or the exam: everyone's
+        // progress through that round, straight from the DB.
+        $practice = $setting->practiceRunning();
+        if (! $setting->is_open && ! $practice) {
             $people = User::inLobby()->map(fn (User $u) => $card($u));
         } else {
-            $sections = Section::orderBy('sort')->get();
+            $sections = Section::mode($practice)->get();
             $people = User::where('is_admin', false)->orderBy('name')->with('attempts')->get()
-                ->map(fn (User $u) => $card($u, $this->progress($u, $sections, $setting->max_violations)));
+                ->map(fn (User $u) => $card($u, $this->progress($u, $sections, $practice ? 0 : $setting->max_violations, $practice)));
         }
 
         return response()->json([
             'open' => $setting->is_open,
+            'practice' => $practice,
             'total' => User::where('is_admin', false)->count(),
             'present' => $people->values(),
         ]);
     }
 
     /** [label, kind] for the projector board. Read-only: expired attempts count as finished without writing. */
-    private function progress(User $user, $sections, int $maxViolations): array
+    private function progress(User $user, $sections, int $maxViolations, bool $practice = false): array
     {
         if ($maxViolations > 0 && $user->violations >= $maxViolations) {
             return ['Terkunci', 'locked'];
@@ -131,7 +135,7 @@ class DashboardController extends Controller
             }
         }
 
-        return ['Selesai', 'done'];
+        return [$practice ? 'Selesai simulasi' : 'Selesai', 'done'];
     }
 
     /** Lobby start button: only ever opens, so a double click can't close the exam again. */
@@ -140,6 +144,32 @@ class DashboardController extends Controller
         Setting::current()->update(['is_open' => true]);
 
         return response()->json(['open' => true]);
+    }
+
+    /** Lobby practice button: starts the short, unscored practice round (only before the real exam). */
+    public function practice()
+    {
+        $setting = Setting::current();
+        if ($setting->is_open) {
+            return response()->json(['message' => 'Ujian sudah dimulai.'], 409);
+        }
+        $setting->update(['practice_open' => true, 'practice_round' => (int) $setting->practice_round + 1]);
+
+        return response()->json(['practice' => true]);
+    }
+
+    /** Lobby "ULANGI SIMULASI": wipes every practice attempt and starts the practice round again for everyone. */
+    public function restartPractice()
+    {
+        $setting = Setting::current();
+        if ($setting->is_open) {
+            return response()->json(['message' => 'Ujian sudah dimulai.'], 409);
+        }
+        // answers go with their attempts (cascade); real-exam attempts are untouched
+        Attempt::whereIn('section_id', Section::mode(true)->pluck('id'))->delete();
+        $setting->update(['practice_open' => true, 'practice_round' => (int) $setting->practice_round + 1]);
+
+        return response()->json(['practice' => true]);
     }
 
     public function toggleOpen()

@@ -15,7 +15,7 @@ class Scoring
      */
     public static function ranking(): Collection
     {
-        $sections = Section::orderBy('sort')->get();
+        $sections = Section::exam()->get();
         $keys = Question::get(['id', 'section_id', 'answer'])->groupBy('section_id');
 
         $rows = User::where('is_admin', false)

@@ -51,6 +51,7 @@
         <main class="content">
             @include('partials.flash')
             @include('partials.loading')
+            @include('partials.confirm-dialog')
             @yield('content')
         </main>
     </div>
