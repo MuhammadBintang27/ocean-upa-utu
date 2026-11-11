@@ -22,25 +22,40 @@ def rec(phase, t, code):
         stats.setdefault(phase, []).append((t, code))
 
 
+conn_errors = []      # times of recent connection failures on this machine
+BLOCK_ERRORS, BLOCK_WINDOW = 15, 30  # this many failures within this many seconds = the host is refusing us
+
+
 def timed(phase, fn, *a, **kw):
     if ABORT.is_set():
         return None
     t0 = time.perf_counter()
-    try:
-        r = fn(*a, timeout=60, **kw)
-        rec(phase, time.perf_counter() - t0, r.status_code)
-        return r
-    except Exception as e:  # noqa: BLE001 - every failure is recorded
-        rec(phase, time.perf_counter() - t0, type(e).__name__)
-        if isinstance(e, requests.exceptions.ConnectionError) and not ABORT.is_set():
-            # reset / TLS failure: the host is refusing this IP. Record where, then stop this machine.
+    for attempt in (1, 2):
+        try:
+            r = fn(*a, timeout=60, **kw)
+            rec(phase, time.perf_counter() - t0, r.status_code)
+            return r
+        except requests.exceptions.ConnectionError as e:
+            # A keep-alive connection the server just closed fails once; browsers silently retry on a
+            # fresh connection, so do the same before counting it.
+            if attempt == 1:
+                continue
+            rec(phase, time.perf_counter() - t0, type(e).__name__)
+            now = time.time()
             with lock:
-                if not block:
-                    block.update(at=time.strftime('%H:%M:%S'), elapsed=round(time.time() - t_start), phase=phase,
-                                 url=a[0] if a else '?', error=str(e)[:160])
-            ABORT.set()
-            log(f'BLOCKED: {block}')
-        return None
+                conn_errors.append(now)
+                recent = [t for t in conn_errors if now - t <= BLOCK_WINDOW]
+                conn_errors[:] = recent
+                if len(recent) >= BLOCK_ERRORS and not block:
+                    # many failures in a short time: the host is refusing this IP. Record where, then stop.
+                    block.update(at=time.strftime('%H:%M:%S'), elapsed=round(now - t_start), phase=phase,
+                                 url=a[0] if a else '?', errors_in_window=len(recent), error=str(e)[:160])
+                    ABORT.set()
+                    log(f'BLOCKED: {block}')
+            return None
+        except Exception as e:  # noqa: BLE001 - every failure is recorded
+            rec(phase, time.perf_counter() - t0, type(e).__name__)
+            return None
 
 
 def retry(phase, fn, *a, ok=(200, 302), tries=12, **kw):
