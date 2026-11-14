@@ -382,4 +382,19 @@ class ExamTest extends TestCase
         $this->postJson('/admin/practice/restart')->assertStatus(409);
         $this->postJson('/admin/practice')->assertStatus(409);
     }
+
+    public function test_admin_bulk_deletes_checked_or_all_participants(): void
+    {
+        $admin = User::create(['username' => 'adm', 'name' => 'Admin', 'password' => 'x', 'is_admin' => true]);
+        $p = collect(['a', 'b', 'c'])->map(fn ($u) => User::create(['username' => $u, 'name' => $u, 'password' => 'x']));
+        $this->actingAs($admin);
+
+        $this->delete(route('admin.participants.bulk-destroy'), ['ids' => [$p[0]->id, $p[1]->id, $admin->id]])->assertRedirect();
+        $this->assertSame(['c'], User::where('is_admin', false)->pluck('username')->all());
+        $this->assertNotNull($admin->fresh());
+
+        $this->delete(route('admin.participants.bulk-destroy'), ['all' => 1]);
+        $this->assertSame(0, User::where('is_admin', false)->count());
+        $this->assertNotNull($admin->fresh());
+    }
 }

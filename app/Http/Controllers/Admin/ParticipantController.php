@@ -25,8 +25,21 @@ class ParticipantController extends Controller
     public function index()
     {
         return view('admin.participants.index', [
-            'participants' => User::where('is_admin', false)->orderBy('username')->get(),
+            'participants' => User::where('is_admin', false)->orderBy('username')->paginate(50),
         ]);
+    }
+
+    /** Deletes the checked participants, or every participant when `all` is sent. */
+    public function bulkDestroy(Request $request)
+    {
+        $query = User::where('is_admin', false);
+        if (! $request->boolean('all')) {
+            $ids = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']])['ids'];
+            $query->whereIn('id', $ids);
+        }
+        $count = $query->delete(); // attempts/answers/violation logs cascade in the DB
+
+        return redirect()->route('admin.participants.index')->with('status', "{$count} peserta dihapus.");
     }
 
     public function store(Request $request)

@@ -46,6 +46,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/participants/template', [ParticipantController::class, 'template'])->name('participants.template');
         Route::get('/participants/cards', [ParticipantController::class, 'cards'])->name('participants.cards');
         Route::get('/participants/accounts',[ParticipantController::class, 'exportAccounts'])->name('participants.accounts');
+        Route::delete('/participants/bulk', [ParticipantController::class, 'bulkDestroy'])->name('participants.bulk-destroy');
         Route::post('/participants/{participant}/reset-device', [ParticipantController::class, 'resetDevice'])->name('participants.reset-device');
         Route::post('/participants/{participant}/reset-exam', [ParticipantController::class, 'resetExam'])->name('participants.reset-exam');
         Route::resource('participants', ParticipantController::class)->except(['create']);

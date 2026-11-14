@@ -19,6 +19,10 @@
     .pw.show { filter: none; user-select: text; }
     .drop { border: 2px dashed var(--blue-100); border-radius: 12px; padding: 18px; text-align: center; background: var(--blue-50); }
     .drop input { margin-top: 8px; }
+    .pagination { display: flex; gap: 4px; list-style: none; padding: 0; margin: 16px 0 0; flex-wrap: wrap; }
+    .pagination li > * { display: block; padding: 5px 11px; border-radius: 8px; border: 1px solid var(--blue-100); text-decoration: none; }
+    .pagination li.active > * { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .pagination li.disabled > * { opacity: .45; }
 </style>
 @endpush
 
@@ -50,16 +54,23 @@
 
 <div class="card">
     <div class="card-head">
-        <h3>Daftar peserta</h3><span class="badge badge-blue">{{ $participants->count() }}</span>
+        <h3>Daftar peserta</h3><span class="badge badge-blue">{{ $participants->total() }}</span>
         <span class="spacer"></span>
         <span class="muted">Klik password untuk menampilkan</span>
     </div>
+    @if($participants->total())
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <form id="bulk" class="inline" method="post" action="{{ route('admin.participants.bulk-destroy') }}" data-confirm="Peserta yang dicentang akan dihapus beserta semua jawabannya. Tindakan ini tidak bisa dibatalkan." data-confirm-title="Hapus peserta terpilih?" data-confirm-ok="Hapus">@csrf @method('DELETE')<button class="btn btn-sm btn-red" id="bulk-btn" disabled>Hapus terpilih (<span id="bulk-n">0</span>)</button></form>
+        <form class="inline" method="post" action="{{ route('admin.participants.bulk-destroy') }}" data-confirm="SEMUA {{ $participants->total() }} peserta (di semua halaman) akan dihapus beserta semua jawabannya. Tindakan ini tidak bisa dibatalkan." data-confirm-title="Hapus semua peserta?" data-confirm-ok="Hapus semua">@csrf @method('DELETE')<input type="hidden" name="all" value="1"><button class="btn btn-sm btn-red">Hapus semua peserta</button></form>
+    </div>
+    @endif
     <div class="table-wrap">
     <table>
-        <thead><tr><th>Username</th><th>Password</th><th>Nama</th><th>Asal sekolah</th><th>Perangkat</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="check-all" aria-label="Pilih semua di halaman ini"></th><th>Username</th><th>Password</th><th>Nama</th><th>Asal sekolah</th><th>Perangkat</th><th></th></tr></thead>
         <tbody>
         @forelse($participants as $p)
             <tr>
+                <td><input type="checkbox" name="ids[]" value="{{ $p->id }}" form="bulk" class="row-check" aria-label="Pilih {{ $p->username }}"></td>
                 <td><strong>{{ $p->username }}</strong></td>
                 <td>@if($p->plain_password)<span class="pw" onclick="this.classList.toggle('show')">{{ $p->plain_password }}</span>@else<span class="muted">-</span>@endif</td>
                 <td>@if($p->avatarUrl())<img src="{{ $p->avatarUrl() }}" alt="" width="24" height="24" style="vertical-align:-7px;margin-right:8px;border-radius:50%">@endif{{ $p->name }}</td>
@@ -73,10 +84,28 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="6" class="muted">Belum ada peserta. Import dari Excel atau tambah satu per satu.</td></tr>
+            <tr><td colspan="7" class="muted">Belum ada peserta. Import dari Excel atau tambah satu per satu.</td></tr>
         @endforelse
         </tbody>
     </table>
     </div>
+    {{ $participants->links('pagination::default') }}
 </div>
+<script>
+(() => {
+    const all = document.getElementById('check-all');
+    if (!all) return;
+    const rows = [...document.querySelectorAll('.row-check')];
+    const sync = () => {
+        const n = rows.filter(c => c.checked).length;
+        document.getElementById('bulk-n').textContent = n;
+        document.getElementById('bulk-btn').disabled = !n;
+        document.getElementById('bulk').dataset.confirm = n + ' peserta yang dicentang akan dihapus beserta semua jawabannya. Tindakan ini tidak bisa dibatalkan.';
+        all.checked = n === rows.length;
+        all.indeterminate = n > 0 && n < rows.length;
+    };
+    all.addEventListener('change', () => { rows.forEach(c => c.checked = all.checked); sync(); });
+    rows.forEach(c => c.addEventListener('change', sync));
+})();
+</script>
 @endsection
